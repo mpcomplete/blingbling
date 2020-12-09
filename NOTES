@@ -1,0 +1,15 @@
+scoring:
+    multiplier bonus for more than 4 tiles in a clear
+    multiplier bonus for combos
+    P = pts for a basic (4 tile) clear
+    T = number of tiles cleared
+    C = combo number (1 for first clear, 2 for clear-fall-clear, etc)
+    tile bonus = 1 + (T-4)/2
+    combo bonus = 3^(C-1)
+    score = tile * combo * P
+		       4tiles  5tiles  6tiles
+    combo1 =  1 * 4 =	4	6	8
+    combo2 =  3 * 4 =	12	18	24
+    combo3 =  9 * 4 =	28	54	56
+    combo4 = 27 * 4 =	108	162	216
+    combo5 = 81 * 4 =	324	486	648

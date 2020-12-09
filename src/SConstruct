@@ -1,0 +1,45 @@
+# This file is for the scons build system (an excellent make alternative)
+# if you don't have scons, you can:
+#  1) use make
+#  2) get scons from http://www.scons.org/
+# I suggest 2, because scons handles dependencies extremely well
+
+import os
+
+def system(cmd):
+    return os.popen(cmd).read()[:-1]
+
+env = Environment()
+
+env.Append(CCFLAGS = ' -Wall -DDEBUG -ggdb3 ')
+env.Append(LINKFLAGS = ' -ggdb3 ')
+
+env.Append(CCFLAGS = ' -DDATADIR=\\"../data/\\" ')
+env.Append(CCFLAGS = system('paragui-config --cflags'))
+env.Append(LINKFLAGS = system('paragui-config --libs'))
+env.Append(LINKFLAGS = ' -lSDL_mixer')
+
+Default('blingbling')
+
+env.Program('blingbling', Split('\
+app.cc \
+block.cc \
+creditscreen.cc \
+field.cc \
+gamesingle.cc \
+helpscreen.cc \
+main.cc \
+menuscreen.cc \
+newgamescreen.cc \
+optionscreen.cc \
+parser.cc \
+prefs.cc \
+scorelist.cc \
+scorescreen.cc \
+soundset.cc \
+spriteset.cc \
+ticker.cc \
+tile.cc \
+utils.cc \
+widgets.cc \
+'))

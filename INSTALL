@@ -1,0 +1,10 @@
+BlingBling
+==========
+by Matt Perry <guy@somewhere.fscked.org>
+
+To compile:
+    ./configure
+    make
+
+To install:
+    make install

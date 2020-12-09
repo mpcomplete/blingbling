@@ -1,0 +1,15 @@
+1.1: Fri Nov 28, 2003
+	* Added animations to clears and block rotations.
+	* Connections are visually shown by highlighting the connecting
+	blocks.
+	* Game options are now accessed from a screen after pressing "New
+	Game."
+	* Vast speed improvements with the drawing code.
+	* Various UI changes.
+	* File formats for high scores and preferences have been changed.
+
+1.0: Wed Aug 13, 2003
+	* first release
+
+began: Tue Jun 17, 2003
+	* project started
