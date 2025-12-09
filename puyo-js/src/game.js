@@ -275,6 +275,33 @@ class Field {
         this.hazard_timer = 0;
         this.timer = 0;
         this.field_changed = true;
+
+        // Create persistent sprites for field tiles
+        this.sprites = [];
+        for (let i = 0; i < this.height; i++) {
+            this.sprites[i] = [];
+            for (let j = 0; j < this.width; j++) {
+                const sprite = new PIXI.Sprite();
+                sprite.x = j * TILE_SIZE;
+                sprite.y = (this.height - 1 - i) * TILE_SIZE;
+                sprite.width = TILE_SIZE;
+                sprite.height = TILE_SIZE;
+                sprite.visible = false;
+                this.game.field_container.addChild(sprite);
+                this.sprites[i][j] = sprite;
+            }
+        }
+
+        // Create persistent sprites for current block
+        this.current_sprites = [];
+        for (let i = 0; i < BLOCK_SIZE; i++) {
+            const sprite = new PIXI.Sprite();
+            sprite.width = TILE_SIZE;
+            sprite.height = TILE_SIZE;
+            sprite.visible = false;
+            this.game.field_container.addChild(sprite);
+            this.current_sprites.push(sprite);
+        }
     }
 
     game_over() {
@@ -638,10 +665,6 @@ class Game {
         this.music_on = true;
         this.sfx_on = true;
 
-        // Pixi setup
-        this.app = new PIXI.Application();
-        this.init_app();
-
         this.textures = {};
         this.textures_loaded = false;
         this.sounds = {};
@@ -649,33 +672,70 @@ class Game {
 
         this.setup_start_button();
         this.setup_volume_buttons();
+    }
 
-        this.init();
+    async init() {
+        await this.init_app();
+        await this.load_textures();
+        await this.load_sounds();
     }
 
     async init_app() {
-        await this.app.init({ width: 50 + (TILE_SIZE+1)*FIELD_WIDTH, height: 50 + TILE_SIZE*FIELD_HEIGHT, transparent: true });
+        this.app = new PIXI.Application();
+        await this.app.init({
+            // width: 50 + (TILE_SIZE)*FIELD_WIDTH + 200,
+            // height: 100 + TILE_SIZE*FIELD_HEIGHT,
+            resizeTo: window,
+            // backgroundColor: 0x333333,
+            backgroundAlpha: 0,
+        });
         document.body.appendChild(this.app.canvas);
+        this.app.canvas.style.display = 'none';
 
-        const bg = new PIXI.Graphics();
-        bg.rect(50, 50, TILE_SIZE*FIELD_WIDTH, TILE_SIZE*FIELD_HEIGHT).fill(0x333333);
-        this.app.stage.addChild(bg);
+        {
+            this.field_container = new PIXI.Container();
+            this.app.stage.addChild(this.field_container);
 
-        this.field_container = new PIXI.Container();
-        this.field_container.x = 50;
-        this.field_container.y = 50;
-        this.app.stage.addChild(this.field_container);
+            const container = this.field_container;
+            container.addChild(new PIXI.Graphics().rect(0, 0, TILE_SIZE*FIELD_WIDTH, TILE_SIZE*FIELD_HEIGHT).fill(0x999999));
+
+            // Move the container to the center
+            container.x = this.app.screen.width / 2;
+            container.y = this.app.screen.height / 2;
+
+            // Center the bunny sprites in local container coordinates
+            container.pivot.x = container.width / 2;
+            container.pivot.y = container.height / 2;
+        }
 
         // Next block viewport
-        this.next_container = new PIXI.Container();
-        this.next_container.x = this.field_container.x + FIELD_WIDTH * TILE_SIZE + 20;
-        this.next_container.y = this.field_container.y;
-        this.app.stage.addChild(this.next_container);
+        {
+            this.next_container = new PIXI.Container();
+            this.app.stage.addChild(this.next_container);
+
+            this.next_container.addChild(new PIXI.Graphics().rect(0, 0, TILE_SIZE, TILE_SIZE*2).fill(0x999999));
+
+            const fieldBounds = this.field_container.getBounds();
+            this.next_container.x = fieldBounds.right + 25;
+            this.next_container.y = fieldBounds.top;
+        }
+
+        // Create persistent sprites for next block
+        this.next_sprites = [];
+        for (let i = 0; i < BLOCK_SIZE; i++) {
+            const sprite = new PIXI.Sprite();
+            sprite.width = TILE_SIZE;
+            sprite.height = TILE_SIZE;
+            sprite.visible = false;
+            this.next_container.addChild(sprite);
+            this.next_sprites.push(sprite);
+        }
     }
 
     setup_start_button() {
         const startBtn = document.getElementById('start-button');
         startBtn.addEventListener('click', () => {
+            this.app.canvas.style.display = 'block';
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             document.getElementById('volume-controls').style.display = 'block';
@@ -710,11 +770,6 @@ class Game {
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
         this.start_bgm();
-    }
-
-    async init() {
-        await this.load_textures();
-        await this.load_sounds();
     }
 
     async load_sounds() {
@@ -863,68 +918,75 @@ class Game {
     render() {
         if (!this.textures_loaded) return;
 
-        this.field_container.removeChildren();
-
-        // Render field
+        // Update field sprites
         for (let row = 0; row < this.field.height; row++) {
             for (let col = 0; col < this.field.width; col++) {
                 const tile = this.field.get_tile(row, col);
-                let key;
-                if (tile.type === TILE_CLEARED) {
-                    key = `coin${tile.frame + 1}`;
-                } else if (IS_COLOR(tile.type)) {
-                    key = this.get_texture_key(tile.type, this.field.is_connected(row, col));
+                const sprite = this.field.sprites[row][col];
+                if (tile.type === TILE_EMPTY) {
+                    sprite.visible = false;
                 } else {
-                    continue;
+                    sprite.visible = true;
+                    let key;
+                    if (tile.type === TILE_CLEARED) {
+                        key = `coin${tile.frame + 1}`;
+                    } else if (IS_COLOR(tile.type)) {
+                        key = this.get_texture_key(tile.type, this.field.is_connected(row, col));
+                    }
+                    sprite.texture = this.textures[key];
                 }
-                const sprite = new PIXI.Sprite(this.textures[key]);
-                sprite.x = col * TILE_SIZE;
-                sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
-                sprite.width = TILE_SIZE;
-                sprite.height = TILE_SIZE;
-                this.field_container.addChild(sprite);
             }
         }
 
-        // Render current block
+        // Update current block sprites
         if (this.field.current) {
             for (let i = 0; i < BLOCK_SIZE; i++) {
                 const row = this.field.current.get_row(i);
                 const col = this.field.current.get_col(i);
+                const sprite = this.field.current_sprites[i];
                 if (ON_FIELD(row, col, this.field.height, this.field.width)) {
                     const type = this.field.current.get_tile(i).type;
                     if (IS_COLOR(type)) {
-                        const key = this.get_texture_key(type, false);
-                        const sprite = new PIXI.Sprite(this.textures[key]);
+                        sprite.visible = true;
+                        sprite.texture = this.textures[this.get_texture_key(type, false)];
                         sprite.x = col * TILE_SIZE;
                         sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
-                        sprite.width = TILE_SIZE;
-                        sprite.height = TILE_SIZE;
-                        this.field_container.addChild(sprite);
+                    } else {
+                        sprite.visible = false;
                     }
+                } else {
+                    sprite.visible = false;
                 }
+            }
+        } else {
+            for (let i = 0; i < BLOCK_SIZE; i++) {
+                this.field.current_sprites[i].visible = false;
             }
         }
 
-        // Render next block
-        this.next_container.removeChildren();
+        // Update next block sprites
         const next = this.field.get_next();
         if (next) {
             for (let i = 0; i < BLOCK_SIZE; i++) {
                 const type = next.get_tile(i).type;
+                const sprite = this.next_sprites[i];
                 if (IS_COLOR(type)) {
-                    const key = this.get_texture_key(type, false);
-                    const sprite = new PIXI.Sprite(this.textures[key]);
-                    sprite.x = (i % 2) * TILE_SIZE; // simple layout
-                    sprite.y = Math.floor(i / 2) * TILE_SIZE;
-                    sprite.width = TILE_SIZE;
-                    sprite.height = TILE_SIZE;
-                    this.next_container.addChild(sprite);
+                    sprite.visible = true;
+                    sprite.texture = this.textures[this.get_texture_key(type, false)];
+                    sprite.y = (i % 2) * TILE_SIZE;
+                    sprite.x = Math.floor(i / 2) * TILE_SIZE;
+                } else {
+                    sprite.visible = false;
                 }
+            }
+        } else {
+            for (let i = 0; i < BLOCK_SIZE; i++) {
+                this.next_sprites[i].visible = false;
             }
         }
     }
 }
 
 // Start game
-new Game();
+const game = new Game();
+game.init();

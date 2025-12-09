@@ -3,18 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Puyo Puyo Game</title>
+    <title>BlingBling</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #000;
+            background: #aaa;
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
         }
+        .bg {
+            background: linear-gradient(to bottom right, #111 0%, #777 50%, #999 100%);
+        }
+
         canvas {
             display: block;
         }
@@ -66,10 +70,10 @@
         }
     </style>
 </head>
-<body>
+<body class="bg">
     <div id="start-screen">
-        <h1>Puyo Puyo</h1>
-        <button id="start-button">Start Game</button>
+        <h1>BlingBling</h1>
+        <button id="start-button">Play</button>
     </div>
     <div id="game-ui">
         <div>Score: <span id="score">0</span></div>
