@@ -1,0 +1,17 @@
+{
+  "name": "puyo-puyo-game",
+  "version": "1.0.0",
+  "description": "A Puyo-Puyo style puzzle game built with Pixi.js",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "pixi.js": "^8.14.3"
+  }
+}

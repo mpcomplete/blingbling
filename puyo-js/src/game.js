@@ -1,4 +1,6 @@
 // Constants
+import { Application, Graphics, Sprite, Text, Container, Assets } from 'pixi.js';
+
 const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
 const TILE_START = 1;
@@ -637,18 +639,18 @@ class Game {
         this.sfx_on = true;
 
         // Pixi setup
-        this.app = new PIXI.Application({ width: 800, height: 600, transparent: true });
+        this.app = new Application({ width: 800, height: 600, transparent: true });
         document.body.appendChild(this.app.view);
 
         this.create_background();
 
-        this.field_container = new PIXI.Container();
+        this.field_container = new Container();
         this.field_container.x = 50;
         this.field_container.y = 50;
         this.app.stage.addChild(this.field_container);
 
         // Next block viewport
-        this.next_container = new PIXI.Container();
+        this.next_container = new Container();
         this.next_container.x = this.field_container.x + FIELD_WIDTH * TILE_SIZE + 20;
         this.next_container.y = this.field_container.y;
         this.app.stage.addChild(this.next_container);
@@ -665,22 +667,10 @@ class Game {
     }
 
     create_background() {
-        const bg = new PIXI.Graphics();
-
-        // Using gradients
-        // const gradient = new PIXI.FillGradient({
-        //     end: { x: 1, y: 1 },
-        //     colorStops: [
-        //         { offset: 0, color: 0x111111 },
-        //         { offset: 1, color: 0x888888 }
-        //     ]
-        // });
-        // graphics.fillStyle = {
-        //     fill: gradient,
-        //     alpha: 0.8
-        // };
+        const bg = new Graphics();
+        bg.beginFill(0x333333);
         bg.drawRect(0, 0, 800, 600);
-        // bg.fill(gradient);
+        bg.endFill();
         this.app.stage.addChild(bg);
     }
 
@@ -751,7 +741,7 @@ class Game {
     }
 
     add_floating_text(gain) {
-        const text = new PIXI.Text(`+${gain}`, {
+        const text = new Text(`+${gain}`, {
             fontFamily: 'Arial',
             fontSize: 24,
             fill: 0xffffff,
@@ -888,7 +878,7 @@ class Game {
                 } else {
                     continue;
                 }
-                const sprite = new PIXI.Sprite(this.textures[key]);
+                const sprite = new Sprite(this.textures[key]);
                 sprite.x = col * TILE_SIZE;
                 sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
                 sprite.width = TILE_SIZE;
@@ -906,7 +896,7 @@ class Game {
                     const type = this.field.current.get_tile(i).type;
                     if (IS_COLOR(type)) {
                         const key = this.get_texture_key(type, false);
-                        const sprite = new PIXI.Sprite(this.textures[key]);
+                        const sprite = new Sprite(this.textures[key]);
                         sprite.x = col * TILE_SIZE;
                         sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
                         sprite.width = TILE_SIZE;
@@ -925,7 +915,7 @@ class Game {
                 const type = next.get_tile(i).type;
                 if (IS_COLOR(type)) {
                     const key = this.get_texture_key(type, false);
-                    const sprite = new PIXI.Sprite(this.textures[key]);
+                    const sprite = new Sprite(this.textures[key]);
                     sprite.x = (i % 2) * TILE_SIZE; // simple layout
                     sprite.y = Math.floor(i / 2) * TILE_SIZE;
                     sprite.width = TILE_SIZE;
