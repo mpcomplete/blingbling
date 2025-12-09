@@ -618,8 +618,25 @@ class Game {
         this.field_container = new PIXI.Container();
         this.app.stage.addChild(this.field_container);
 
+        this.textures = {};
+        this.textures_loaded = false;
+
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
+
+        this.init();
+    }
+
+    async init() {
+        await this.load_textures();
+    }
+
+    async load_textures() {
+        const icon_names = ['cherry', 'coin', 'diamond', 'lemon', 'seven'];
+        for (let i = 0; i < NUM_TYPES; i++) {
+            this.textures[i + 1] = await PIXI.Assets.load(`icons/${icon_names[i]}.png`);
+        }
+        this.textures_loaded = true;
     }
 
     setup_input() {
@@ -701,18 +718,20 @@ class Game {
     }
 
     render() {
+        if (!this.textures_loaded) return;
+
         this.field_container.removeChildren();
 
         // Render field
         for (let row = 0; row < this.field.height; row++) {
             for (let col = 0; col < this.field.width; col++) {
                 const tile = this.field.get_tile(row, col);
-                if (tile.type !== TILE_EMPTY) {
-                    const sprite = new PIXI.Graphics();
-                    const color = this.get_color(tile.type);
-                    sprite.beginFill(color);
-                    sprite.drawRect(col * this.tile_size, (this.field.height - 1 - row) * this.tile_size, this.tile_size, this.tile_size);
-                    sprite.endFill();
+                if (IS_COLOR(tile.type)) {
+                    const sprite = new PIXI.Sprite(this.textures[tile.type]);
+                    sprite.x = col * this.tile_size;
+                    sprite.y = (this.field.height - 1 - row) * this.tile_size;
+                    sprite.width = this.tile_size;
+                    sprite.height = this.tile_size;
                     this.field_container.addChild(sprite);
                 }
             }
@@ -724,20 +743,18 @@ class Game {
                 const row = this.field.current.get_row(i);
                 const col = this.field.current.get_col(i);
                 if (ON_FIELD(row, col, this.field.height, this.field.width)) {
-                    const sprite = new PIXI.Graphics();
-                    const color = this.get_color(this.field.current.get_tile(i).type);
-                    sprite.beginFill(color);
-                    sprite.drawRect(col * this.tile_size, (this.field.height - 1 - row) * this.tile_size, this.tile_size, this.tile_size);
-                    sprite.endFill();
-                    this.field_container.addChild(sprite);
+                    const type = this.field.current.get_tile(i).type;
+                    if (IS_COLOR(type)) {
+                        const sprite = new PIXI.Sprite(this.textures[type]);
+                        sprite.x = col * this.tile_size;
+                        sprite.y = (this.field.height - 1 - row) * this.tile_size;
+                        sprite.width = this.tile_size;
+                        sprite.height = this.tile_size;
+                        this.field_container.addChild(sprite);
+                    }
                 }
             }
         }
-    }
-
-    get_color(type) {
-        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
-        return colors[type - 1] || 0xffffff;
     }
 }
 
