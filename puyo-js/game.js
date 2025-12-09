@@ -2,7 +2,7 @@
 const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
 const TILE_START = 1;
-const NUM_TYPES = 5; // colors
+const NUM_TYPES = 7; // colors
 const BLOCK_SIZE = 2;
 const FIELD_WIDTH = 6;
 const FIELD_HEIGHT = 12;
@@ -35,9 +35,11 @@ const KEY_ROTATE_RIGHT = 4;
 const KEY_DROP = 5;
 const NUM_KEYS = 6;
 
+const TILE_NAMES = ['bar', 'bell', 'cherry', 'diamond', 'lemon', 'goldbars', 'seven'];
+
 // Utility
 function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return Math.floor(Math.random() * (max - min)) + min;
 }
 
 function IS_COLOR(type) {
@@ -50,22 +52,31 @@ function ON_FIELD(row, col, height, width) {
 
 // Tile class
 class Tile {
+    static rand() { return randInt(TILE_START, NUM_TYPES+1); }
+
     constructor(type = null) {
         if (type === null) {
-            this.type = randInt(TILE_START, NUM_TYPES);
+            this.type = TILE_EMPTY;
         } else {
             this.type = type;
         }
         this.age = 0;
         this.frame = 0;
+        this.started = false;
     }
 
     tick(ms) {
-        this.age += ms;
-        // Animation logic if needed
+        if (this.started) {
+            this.age += ms;
+            this.frame = Math.floor(this.age / 66) % 6; // 6 frames, ~66ms each for 400ms total
+        }
     }
 
-    start() {}
+    start() {
+        this.started = true;
+        this.age = 0;
+        this.frame = 0;
+    }
 }
 
 // Block class
@@ -74,7 +85,7 @@ class Block {
         this.orient = NORTH;
         this.tiles = [];
         for (let i = 0; i < BLOCK_SIZE; i++) {
-            this.tiles.push(new Tile());
+            this.tiles.push(new Tile(y != null ? Tile.rand() : null));
         }
         this.y = y !== null ? y : 0;
         this.x = x !== null ? x : 0;
@@ -272,6 +283,13 @@ class Field {
     is_connected(row, col) { return this.connected[row][col]; }
 
     tick(ms) {
+        // Tick all tiles
+        for (let row = 0; row < this.height; row++) {
+            for (let col = 0; col < this.width; col++) {
+                this.data[row][col].tick(ms);
+            }
+        }
+
         this.timer += ms;
 
         if (this.state !== WIPE_CLEARED) {
@@ -583,7 +601,7 @@ class Field {
         for (let col = 0; col < this.width; col++) {
             let attempts = 50;
             do {
-                this.data[0][col] = new Tile();
+                this.data[0][col] = new Tile(Tile.rand());
                 attempts--;
             } while (attempts > 0 &&
                      ((col >= 2 && this.data[0][col - 2].type === this.data[0][col - 1].type && this.data[0][col - 1].type === this.data[0][col].type) ||
@@ -611,7 +629,7 @@ class Game {
         this.paused = false;
 
         // Pixi setup
-        this.app = new PIXI.Application({ width: 800, height: 600, backgroundColor: 0x000000 });
+        this.app = new PIXI.Application({ width: 800, height: 600, backgroundColor: 0x333377 });
         document.body.appendChild(this.app.view);
 
         this.tile_size = 32;
@@ -632,23 +650,30 @@ class Game {
     }
 
     async load_textures() {
-        const icon_names = ['cherry', 'coin', 'diamond', 'lemon', 'seven'];
+        // const type_names = Array.from({length: NUM_TYPES}, i => 'seven');
+        // Load normal and connected
         for (let i = 0; i < NUM_TYPES; i++) {
-            this.textures[i + 1] = await PIXI.Assets.load(`icons/${icon_names[i]}.png`);
+            const name = TILE_NAMES[i];
+            this.textures[`${name}`] = await PIXI.Assets.load(`assets/tiles/${name}.png`);
+            this.textures[`c${name}`] = await PIXI.Assets.load(`assets/tiles/c${name}.png`);
+        }
+        // Load clear animation
+        for (let i = 1; i <= 6; i++) {
+            this.textures[`coin${i}`] = await PIXI.Assets.load(`assets/tiles/coin${i}.png`);
         }
         this.textures_loaded = true;
     }
 
     setup_input() {
+        const key_map = {
+            'KeyS': KEY_DOWN,
+            'KeyA': KEY_LEFT,
+            'KeyD': KEY_RIGHT,
+            'KeyQ': KEY_ROTATE_LEFT,
+            'KeyE': KEY_ROTATE_RIGHT,
+            'Space': KEY_DROP
+        };
         window.addEventListener('keydown', (e) => {
-            const key_map = {
-                'ArrowDown': KEY_DOWN,
-                'ArrowLeft': KEY_LEFT,
-                'ArrowRight': KEY_RIGHT,
-                'KeyZ': KEY_ROTATE_LEFT,
-                'KeyX': KEY_ROTATE_RIGHT,
-                'Space': KEY_DROP
-            };
             const key = key_map[e.code];
             if (key !== undefined) {
                 e.preventDefault();
@@ -658,14 +683,6 @@ class Game {
         });
 
         window.addEventListener('keyup', (e) => {
-            const key_map = {
-                'ArrowDown': KEY_DOWN,
-                'ArrowLeft': KEY_LEFT,
-                'ArrowRight': KEY_RIGHT,
-                'KeyZ': KEY_ROTATE_LEFT,
-                'KeyX': KEY_ROTATE_RIGHT,
-                'Space': KEY_DROP
-            };
             const key = key_map[e.code];
             if (key !== undefined) {
                 this.key_delay[key] = 0;
@@ -717,6 +734,11 @@ class Game {
         this.render();
     }
 
+    get_texture_key(type, connected) {
+        const name = TILE_NAMES[type - 1];
+        return connected ? `c${name}` : name;
+    }
+
     render() {
         if (!this.textures_loaded) return;
 
@@ -726,14 +748,20 @@ class Game {
         for (let row = 0; row < this.field.height; row++) {
             for (let col = 0; col < this.field.width; col++) {
                 const tile = this.field.get_tile(row, col);
-                if (IS_COLOR(tile.type)) {
-                    const sprite = new PIXI.Sprite(this.textures[tile.type]);
-                    sprite.x = col * this.tile_size;
-                    sprite.y = (this.field.height - 1 - row) * this.tile_size;
-                    sprite.width = this.tile_size;
-                    sprite.height = this.tile_size;
-                    this.field_container.addChild(sprite);
+                let key;
+                if (tile.type === TILE_CLEARED) {
+                    key = `coin${tile.frame + 1}`;
+                } else if (IS_COLOR(tile.type)) {
+                    key = this.get_texture_key(tile.type, this.field.is_connected(row, col));
+                } else {
+                    continue;
                 }
+                const sprite = new PIXI.Sprite(this.textures[key]);
+                sprite.x = col * this.tile_size;
+                sprite.y = (this.field.height - 1 - row) * this.tile_size;
+                sprite.width = this.tile_size;
+                sprite.height = this.tile_size;
+                this.field_container.addChild(sprite);
             }
         }
 
@@ -745,7 +773,8 @@ class Game {
                 if (ON_FIELD(row, col, this.field.height, this.field.width)) {
                     const type = this.field.current.get_tile(i).type;
                     if (IS_COLOR(type)) {
-                        const sprite = new PIXI.Sprite(this.textures[type]);
+                        const key = this.get_texture_key(type, false);
+                        const sprite = new PIXI.Sprite(this.textures[key]);
                         sprite.x = col * this.tile_size;
                         sprite.y = (this.field.height - 1 - row) * this.tile_size;
                         sprite.width = this.tile_size;
