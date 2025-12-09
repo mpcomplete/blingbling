@@ -518,6 +518,7 @@ class Field {
             this.score += gain;
             this.hazard_decrease(Math.floor(bonus * HAZARD_DROP_PER_CLEAR));
             this.game.play_sound(`clear${Math.min(this.combo, 5)}`);
+            this.game.add_floating_text(gain);
             this.state = WIPE_CLEARED;
             return gain;
         }
@@ -631,33 +632,100 @@ class Field {
 // Game class
 class Game {
     constructor() {
+        this.started = false;
+        this.music_on = true;
+        this.sfx_on = true;
+
+        // Pixi setup
+        this.app = new PIXI.Application({ width: 800, height: 600, transparent: true });
+        document.body.appendChild(this.app.view);
+
+        this.create_background();
+
+        this.field_container = new PIXI.Container();
+        this.field_container.x = 50;
+        this.field_container.y = 50;
+        this.app.stage.addChild(this.field_container);
+
+        // Next block viewport
+        this.next_container = new PIXI.Container();
+        this.next_container.x = this.field_container.x + FIELD_WIDTH * TILE_SIZE + 20;
+        this.next_container.y = this.field_container.y;
+        this.app.stage.addChild(this.next_container);
+
+        this.textures = {};
+        this.textures_loaded = false;
+        this.sounds = {};
+        this.floating_texts = [];
+
+        this.setup_start_button();
+        this.setup_volume_buttons();
+
+        this.init();
+    }
+
+    create_background() {
+        const bg = new PIXI.Graphics();
+
+        // Using gradients
+        // const gradient = new PIXI.FillGradient({
+        //     end: { x: 1, y: 1 },
+        //     colorStops: [
+        //         { offset: 0, color: 0x111111 },
+        //         { offset: 1, color: 0x888888 }
+        //     ]
+        // });
+        // graphics.fillStyle = {
+        //     fill: gradient,
+        //     alpha: 0.8
+        // };
+        bg.drawRect(0, 0, 800, 600);
+        // bg.fill(gradient);
+        this.app.stage.addChild(bg);
+    }
+
+    setup_start_button() {
+        const startBtn = document.getElementById('start-button');
+        startBtn.addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('volume-controls').style.display = 'block';
+            this.start_game();
+        });
+    }
+
+    setup_volume_buttons() {
+        const musicBtn = document.getElementById('music-toggle');
+        const sfxBtn = document.getElementById('sfx-toggle');
+
+        musicBtn.addEventListener('click', () => {
+            this.music_on = !this.music_on;
+            musicBtn.textContent = `Music: ${this.music_on ? 'ON' : 'OFF'}`;
+            if (this.sounds.bgm) this.sounds.bgm.volume = this.music_on ? 1 : 0;
+        });
+
+        sfxBtn.addEventListener('click', () => {
+            this.sfx_on = !this.sfx_on;
+            sfxBtn.textContent = `SFX: ${this.sfx_on ? 'ON' : 'OFF'}`;
+        });
+    }
+
+    start_game() {
+        this.started = true;
         this.field = new Field(this);
         this.last_time = 0;
         this.key_delay = new Array(NUM_KEYS).fill(0);
         this.key_handled = new Array(NUM_KEYS).fill(false);
         this.paused = false;
 
-        // Pixi setup
-        this.app = new PIXI.Application({ width: TILE_SIZE*FIELD_WIDTH, height: TILE_SIZE*FIELD_HEIGHT, backgroundColor: 0x333377 });
-        document.body.appendChild(this.app.view);
-
-        this.field_container = new PIXI.Container();
-        this.app.stage.addChild(this.field_container);
-
-        this.textures = {};
-        this.textures_loaded = false;
-        this.sounds = {};
-
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
-
-        this.init();
+        this.start_bgm();
     }
 
     async init() {
         await this.load_textures();
         await this.load_sounds();
-        this.start_bgm();
     }
 
     async load_sounds() {
@@ -676,9 +744,36 @@ class Game {
     }
 
     play_sound(name) {
-        if (this.sounds[name]) {
+        if (this.sfx_on && this.sounds[name]) {
             this.sounds[name].currentTime = 0;
             this.sounds[name].play();
+        }
+    }
+
+    add_floating_text(gain) {
+        const text = new PIXI.Text(`+${gain}`, {
+            fontFamily: 'Arial',
+            fontSize: 24,
+            fill: 0xffffff,
+            stroke: 0x000000,
+            strokeThickness: 2
+        });
+        text.x = this.field_container.x + FIELD_WIDTH * TILE_SIZE / 2 - text.width / 2;
+        text.y = this.field_container.y + FIELD_HEIGHT * TILE_SIZE / 2;
+        this.app.stage.addChild(text);
+        this.floating_texts.push({ text, y: text.y, time: 0 });
+    }
+
+    update_floating_texts(ms) {
+        for (let i = this.floating_texts.length - 1; i >= 0; i--) {
+            const ft = this.floating_texts[i];
+            ft.time += ms;
+            ft.text.y = ft.y - ft.time / 10; // move up
+            ft.text.alpha = 1 - ft.time / 1000; // fade out
+            if (ft.time > 1000) {
+                this.app.stage.removeChild(ft.text);
+                this.floating_texts.splice(i, 1);
+            }
         }
     }
 
@@ -724,6 +819,8 @@ class Game {
     }
 
     update() {
+        if (!this.started) return;
+
         const now = performance.now();
         const ms = now - this.last_time;
         this.last_time = now;
@@ -762,6 +859,8 @@ class Game {
         document.getElementById('score').textContent = this.field.get_score();
         document.getElementById('speed').textContent = this.field.get_speed();
         document.getElementById('combo').textContent = this.field.get_best_combo();
+
+        this.update_floating_texts(ms);
 
         // Render
         this.render();
@@ -814,6 +913,24 @@ class Game {
                         sprite.height = TILE_SIZE;
                         this.field_container.addChild(sprite);
                     }
+                }
+            }
+        }
+
+        // Render next block
+        this.next_container.removeChildren();
+        const next = this.field.get_next();
+        if (next) {
+            for (let i = 0; i < BLOCK_SIZE; i++) {
+                const type = next.get_tile(i).type;
+                if (IS_COLOR(type)) {
+                    const key = this.get_texture_key(type, false);
+                    const sprite = new PIXI.Sprite(this.textures[key]);
+                    sprite.x = (i % 2) * TILE_SIZE; // simple layout
+                    sprite.y = Math.floor(i / 2) * TILE_SIZE;
+                    sprite.width = TILE_SIZE;
+                    sprite.height = TILE_SIZE;
+                    this.next_container.addChild(sprite);
                 }
             }
         }
