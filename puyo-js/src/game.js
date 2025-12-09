@@ -41,21 +41,15 @@ const NUM_KEYS = 6;
 const TILE_NAMES = ['bar', 'bell', 'cherry', 'diamond', 'lemon', 'goldbars', 'seven'];
 
 // Utility
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min)) + min;
+const randInt = (min, max) => Math.floor(Math.random() * (max - min)) + min;
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+function* sequence(a, b) {
+    for (let cur = a; cur < b; cur++)
+        yield cur;
 }
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function IS_COLOR(type) {
-    return TILE_START <= type && type <= NUM_TYPES;
-}
-
-function ON_FIELD(row, col, height, width) {
-    return row >= 0 && row < height && col >= 0 && col < width;
-}
+const IS_COLOR = (type) => TILE_START <= type && type <= NUM_TYPES;
+const ON_FIELD = (row, col, height, width) => row >= 0 && row < height && col >= 0 && col < width;
 
 // Tile class
 class Tile {
@@ -214,6 +208,12 @@ class Block {
         const angle = (1 - t) * this.start_angle + t * this.stop_angle;
         this.dy = Math.sin(angle);
         this.dx = Math.cos(angle);
+
+        // sequence(0, BLOCK_SIZE).forEach(i => {
+        //     console.log(`sprite ${i}`);
+        // //     console.log(`sprite ${i} = ${this.tiles[i].sprite}`);
+        //     this.tiles[i].sprite.position.set(this.get_x(i) * TILE_SIZE, this.get_y(i) * TILE_SIZE);
+        // });
     }
 
     rotate_right(anim = false) {
@@ -294,6 +294,24 @@ class Block {
     get_orient() {
         return this.orient;
     }
+
+    update_sprite(game, startY) {
+        sequence(0, BLOCK_SIZE).forEach(i => {
+            this.tiles[i].update_block_sprite(game, this.get_x(i)*TILE_SIZE, startY - this.get_y(i)*TILE_SIZE);
+            console.log(`tile ${i} = ${this.tiles[i].sprite.x}, ${this.tiles[i].sprite.y} from ${this.x}, ${this.y}`);
+        });
+            // for (let i = 0; i < BLOCK_SIZE; i++) {
+            //     const row = this.field.current.get_row(i);
+            //     const col = this.field.current.get_col(i);
+            //     if (ON_FIELD(row, col, this.field.height, this.field.width)) {
+            //         // this.field.current.get_tile(i).update_block_sprite(this, col * TILE_SIZE, (this.field.height - 1 - row) * TILE_SIZE);
+            //     } else {
+            //         if (this.field.current.get_tile(i).sprite) {
+            //             this.field.current.get_tile(i).sprite.visible = false;
+            //         }
+            //     }
+            // }
+    }
 }
 
 // Field class
@@ -314,7 +332,7 @@ class Field {
             }
         }
         this.current = null;
-        this.next = new Block(this.game, height - 0.5, width / 2, this.game.next_container);
+        this.next = new Block(this.game, 0, 0, this.game.next_container);
         this.state = BLOCK_RELEASE;
         this.score = 0;
         this.combo = 0;
@@ -408,15 +426,18 @@ class Field {
     }
 
     block_release() {
-        if (this.check_collision(this.next)) {
+        this.current = this.next;
+        this.current.y = this.height - 0.5;
+        this.current.x = this.width / 2;
+
+        if (this.check_collision(this.current)) {
             this.state = GAME_OVER;
             return;
         }
-        this.current = this.next;
         for (let i = 0; i < BLOCK_SIZE; i++) {
             this.current.tiles[i].set_sprite(this.game.field_container);
         }
-        this.next = new Block(this.game, this.height - 0.5, this.width / 2, this.game.next_container);
+        this.next = new Block(this.game, 0, 0, this.game.next_container);
         this.state = BLOCK_FALLING;
     }
 
@@ -726,7 +747,12 @@ class Game {
             this.app.stage.addChild(this.field_container);
 
             const container = this.field_container;
-            container.addChild(new PIXI.Graphics().rect(0, 0, TILE_SIZE*FIELD_WIDTH, TILE_SIZE*FIELD_HEIGHT).fill(0x999999));
+            const bg = new PIXI.Graphics().rect(0, 0, TILE_SIZE*FIELD_WIDTH, TILE_SIZE*FIELD_HEIGHT).fill(0x999999);
+            container.addChild(bg);
+
+            const mask = bg.clone();
+            container.mask = mask;
+            container.addChild(mask);
 
             // Move the container to the center
             container.x = this.app.screen.width / 2;
@@ -742,7 +768,11 @@ class Game {
             this.next_container = new PIXI.Container();
             this.app.stage.addChild(this.next_container);
 
-            this.next_container.addChild(new PIXI.Graphics().rect(0, 0, TILE_SIZE, TILE_SIZE*2).fill(0x999999));
+            const bg = new PIXI.Graphics().rect(0, 0, TILE_SIZE, TILE_SIZE*2).fill(0x999999);
+            this.next_container.addChild(bg);
+            const mask = bg.clone();
+            this.next_container.mask = mask;
+            this.next_container.addChild(mask);
 
             const fieldBounds = this.field_container.getBounds();
             this.next_container.x = fieldBounds.right + 25;
@@ -945,25 +975,13 @@ class Game {
 
         // Update current block sprites
         if (this.field.current) {
-            for (let i = 0; i < BLOCK_SIZE; i++) {
-                const row = this.field.current.get_row(i);
-                const col = this.field.current.get_col(i);
-                if (ON_FIELD(row, col, this.field.height, this.field.width)) {
-                    this.field.current.get_tile(i).update_block_sprite(this, col * TILE_SIZE, (this.field.height - 1 - row) * TILE_SIZE);
-                } else {
-                    if (this.field.current.get_tile(i).sprite) {
-                        this.field.current.get_tile(i).sprite.visible = false;
-                    }
-                }
-            }
+            this.field.current.update_sprite(this, (this.field.height - 1) * TILE_SIZE);
         }
 
         // Update next block sprites
         const next = this.field.get_next();
         if (next) {
-            for (let i = 0; i < BLOCK_SIZE; i++) {
-                next.get_tile(i).update_block_sprite(this, (i % 2) * TILE_SIZE, Math.floor(i / 2) * TILE_SIZE);
-            }
+            next.update_sprite(this, TILE_SIZE);
         }
     }
 }
