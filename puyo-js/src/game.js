@@ -1,5 +1,5 @@
 // Constants
-import { Application, Graphics, Sprite, Text, Container, Assets } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 
 const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
@@ -639,7 +639,7 @@ class Game {
         this.sfx_on = true;
 
         // Pixi setup
-        this.app = new Application();
+        this.app = new PIXI.Application();
         this.init_app();
 
         this.textures = {};
@@ -654,29 +654,23 @@ class Game {
     }
 
     async init_app() {
-        await this.app.init({ width: 800, height: 600, transparent: true });
+        await this.app.init({ width: 50 + (TILE_SIZE+1)*FIELD_WIDTH, height: 50 + TILE_SIZE*FIELD_HEIGHT, transparent: true });
         document.body.appendChild(this.app.canvas);
 
-        this.create_background();
+        const bg = new PIXI.Graphics();
+        bg.rect(50, 50, TILE_SIZE*FIELD_WIDTH, TILE_SIZE*FIELD_HEIGHT).fill(0x333333);
+        this.app.stage.addChild(bg);
 
-        this.field_container = new Container();
+        this.field_container = new PIXI.Container();
         this.field_container.x = 50;
         this.field_container.y = 50;
         this.app.stage.addChild(this.field_container);
 
         // Next block viewport
-        this.next_container = new Container();
+        this.next_container = new PIXI.Container();
         this.next_container.x = this.field_container.x + FIELD_WIDTH * TILE_SIZE + 20;
         this.next_container.y = this.field_container.y;
         this.app.stage.addChild(this.next_container);
-    }
-
-    create_background() {
-        const bg = new Graphics();
-        bg.beginFill(0x333333);
-        bg.drawRect(0, 0, 800, 600);
-        bg.endFill();
-        this.app.stage.addChild(bg);
     }
 
     setup_start_button() {
@@ -746,7 +740,7 @@ class Game {
     }
 
     add_floating_text(gain) {
-        const text = new Text(`+${gain}`, {
+        const text = new PIXI.Text(`+${gain}`, {
             fontFamily: 'Arial',
             fontSize: 24,
             fill: 0xffffff,
@@ -777,12 +771,12 @@ class Game {
         // Load normal and connected
         for (let i = 0; i < NUM_TYPES; i++) {
             const name = TILE_NAMES[i];
-            this.textures[`${name}`] = await Assets.load(`assets/tiles/${name}.png`);
-            this.textures[`c${name}`] = await Assets.load(`assets/tiles/c${name}.png`);
+            this.textures[`${name}`] = await PIXI.Assets.load(`assets/tiles/${name}.png`);
+            this.textures[`c${name}`] = await PIXI.Assets.load(`assets/tiles/c${name}.png`);
         }
         // Load clear animation
         for (let i = 1; i <= 6; i++) {
-            this.textures[`coin${i}`] = await Assets.load(`assets/tiles/coin${i}.png`);
+            this.textures[`coin${i}`] = await PIXI.Assets.load(`assets/tiles/coin${i}.png`);
         }
         this.textures_loaded = true;
     }
@@ -883,7 +877,7 @@ class Game {
                 } else {
                     continue;
                 }
-                const sprite = new Sprite(this.textures[key]);
+                const sprite = new PIXI.Sprite(this.textures[key]);
                 sprite.x = col * TILE_SIZE;
                 sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
                 sprite.width = TILE_SIZE;
@@ -901,7 +895,7 @@ class Game {
                     const type = this.field.current.get_tile(i).type;
                     if (IS_COLOR(type)) {
                         const key = this.get_texture_key(type, false);
-                        const sprite = new Sprite(this.textures[key]);
+                        const sprite = new PIXI.Sprite(this.textures[key]);
                         sprite.x = col * TILE_SIZE;
                         sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
                         sprite.width = TILE_SIZE;
@@ -920,7 +914,7 @@ class Game {
                 const type = next.get_tile(i).type;
                 if (IS_COLOR(type)) {
                     const key = this.get_texture_key(type, false);
-                    const sprite = new Sprite(this.textures[key]);
+                    const sprite = new PIXI.Sprite(this.textures[key]);
                     sprite.x = (i % 2) * TILE_SIZE; // simple layout
                     sprite.y = Math.floor(i / 2) * TILE_SIZE;
                     sprite.width = TILE_SIZE;
