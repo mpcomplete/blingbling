@@ -777,12 +777,12 @@ class Game {
         // Load normal and connected
         for (let i = 0; i < NUM_TYPES; i++) {
             const name = TILE_NAMES[i];
-            this.textures[`${name}`] = await PIXI.Assets.load(`assets/tiles/${name}.png`);
-            this.textures[`c${name}`] = await PIXI.Assets.load(`assets/tiles/c${name}.png`);
+            this.textures[`${name}`] = await Assets.load(`assets/tiles/${name}.png`);
+            this.textures[`c${name}`] = await Assets.load(`assets/tiles/c${name}.png`);
         }
         // Load clear animation
         for (let i = 1; i <= 6; i++) {
-            this.textures[`coin${i}`] = await PIXI.Assets.load(`assets/tiles/coin${i}.png`);
+            this.textures[`coin${i}`] = await Assets.load(`assets/tiles/coin${i}.png`);
         }
         this.textures_loaded = true;
     }
