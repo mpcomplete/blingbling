@@ -639,8 +639,23 @@ class Game {
         this.sfx_on = true;
 
         // Pixi setup
-        this.app = new Application({ width: 800, height: 600, transparent: true });
-        document.body.appendChild(this.app.view);
+        this.app = new Application();
+        this.init_app();
+
+        this.textures = {};
+        this.textures_loaded = false;
+        this.sounds = {};
+        this.floating_texts = [];
+
+        this.setup_start_button();
+        this.setup_volume_buttons();
+
+        this.init();
+    }
+
+    async init_app() {
+        await this.app.init({ width: 800, height: 600, transparent: true });
+        document.body.appendChild(this.app.canvas);
 
         this.create_background();
 
@@ -654,16 +669,6 @@ class Game {
         this.next_container.x = this.field_container.x + FIELD_WIDTH * TILE_SIZE + 20;
         this.next_container.y = this.field_container.y;
         this.app.stage.addChild(this.next_container);
-
-        this.textures = {};
-        this.textures_loaded = false;
-        this.sounds = {};
-        this.floating_texts = [];
-
-        this.setup_start_button();
-        this.setup_volume_buttons();
-
-        this.init();
     }
 
     create_background() {

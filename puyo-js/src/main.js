@@ -1,4 +1,7 @@
 import './game.js';
 
 // Start the game
-new Game();
+(async () => {
+    const game = new Game();
+    await game.init_app();
+})();
