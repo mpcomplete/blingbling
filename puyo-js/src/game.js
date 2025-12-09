@@ -70,6 +70,51 @@ class Tile {
         this.age = 0;
         this.frame = 0;
         this.started = false;
+        this.sprite = null;
+    }
+
+    set_sprite(container) {
+        if (this.sprite) {
+            if (this.sprite.parent) {
+                this.sprite.parent.removeChild(this.sprite);
+            }
+        } else {
+            this.sprite = new PIXI.Sprite();
+            this.sprite.width = TILE_SIZE;
+            this.sprite.height = TILE_SIZE;
+        }
+        container.addChild(this.sprite);
+    }
+
+    update_field_sprite(game, row, col, connected) {
+        if (!this.sprite) return;
+        if (this.type === TILE_EMPTY) {
+            this.sprite.visible = false;
+            return;
+        }
+        this.sprite.visible = true;
+        let key;
+        if (this.type === TILE_CLEARED) {
+            key = `coin${this.frame + 1}`;
+        } else if (IS_COLOR(this.type)) {
+            key = game.get_texture_key(this.type, connected);
+        }
+        this.sprite.texture = game.textures[key];
+        this.sprite.x = col * TILE_SIZE;
+        this.sprite.y = (game.field.height - 1 - row) * TILE_SIZE;
+    }
+
+    update_block_sprite(game, x, y) {
+        if (!this.sprite) return;
+        if (IS_COLOR(this.type)) {
+            this.sprite.visible = true;
+            const key = game.get_texture_key(this.type, false);
+            this.sprite.texture = game.textures[key];
+            this.sprite.x = x;
+            this.sprite.y = y;
+        } else {
+            this.sprite.visible = false;
+        }
     }
 
     tick(ms) {
@@ -88,11 +133,14 @@ class Tile {
 
 // Block class
 class Block {
-    constructor(y = null, x = null) {
+    constructor(game, y = null, x = null, container = null) {
         this.orient = NORTH;
         this.tiles = [];
         for (let i = 0; i < BLOCK_SIZE; i++) {
             this.tiles.push(new Tile(y != null ? Tile.rand() : null));
+            if (container) {
+                this.tiles[i].set_sprite(container);
+            }
         }
         this.y = y !== null ? y : 0;
         this.x = x !== null ? x : 0;
@@ -261,11 +309,12 @@ class Field {
             this.connected[i] = [];
             for (let j = 0; j < width; j++) {
                 this.data[i][j] = new Tile(TILE_EMPTY);
+                this.data[i][j].set_sprite(this.game.field_container);
                 this.connected[i][j] = false;
             }
         }
         this.current = null;
-        this.next = new Block(height - 0.5, width / 2);
+        this.next = new Block(this.game, height - 0.5, width / 2, this.game.next_container);
         this.state = BLOCK_RELEASE;
         this.score = 0;
         this.combo = 0;
@@ -275,33 +324,6 @@ class Field {
         this.hazard_timer = 0;
         this.timer = 0;
         this.field_changed = true;
-
-        // Create persistent sprites for field tiles
-        this.sprites = [];
-        for (let i = 0; i < this.height; i++) {
-            this.sprites[i] = [];
-            for (let j = 0; j < this.width; j++) {
-                const sprite = new PIXI.Sprite();
-                sprite.x = j * TILE_SIZE;
-                sprite.y = (this.height - 1 - i) * TILE_SIZE;
-                sprite.width = TILE_SIZE;
-                sprite.height = TILE_SIZE;
-                sprite.visible = false;
-                this.game.field_container.addChild(sprite);
-                this.sprites[i][j] = sprite;
-            }
-        }
-
-        // Create persistent sprites for current block
-        this.current_sprites = [];
-        for (let i = 0; i < BLOCK_SIZE; i++) {
-            const sprite = new PIXI.Sprite();
-            sprite.width = TILE_SIZE;
-            sprite.height = TILE_SIZE;
-            sprite.visible = false;
-            this.game.field_container.addChild(sprite);
-            this.current_sprites.push(sprite);
-        }
     }
 
     game_over() {
@@ -391,7 +413,10 @@ class Field {
             return;
         }
         this.current = this.next;
-        this.next = new Block(this.height - 0.5, this.width / 2);
+        for (let i = 0; i < BLOCK_SIZE; i++) {
+            this.current.tiles[i].set_sprite(this.game.field_container);
+        }
+        this.next = new Block(this.game, this.height - 0.5, this.width / 2, this.game.next_container);
         this.state = BLOCK_FALLING;
     }
 
@@ -644,10 +669,11 @@ class Field {
             let attempts = 50;
             do {
                 this.data[0][col] = new Tile(Tile.rand());
+                this.data[0][col].set_sprite(this.game.field_container);
                 attempts--;
             } while (attempts > 0 &&
-                     ((col >= 2 && this.data[0][col - 2].type === this.data[0][col - 1].type && this.data[0][col - 1].type === this.data[0][col].type) ||
-                      (this.data[0][col].type === this.data[1][col].type)));
+                      ((col >= 2 && this.data[0][col - 2].type === this.data[0][col - 1].type && this.data[0][col - 1].type === this.data[0][col].type) ||
+                       (this.data[0][col].type === this.data[1][col].type)));
         }
         this.form_connections();
     }
@@ -721,17 +747,6 @@ class Game {
             const fieldBounds = this.field_container.getBounds();
             this.next_container.x = fieldBounds.right + 25;
             this.next_container.y = fieldBounds.top;
-        }
-
-        // Create persistent sprites for next block
-        this.next_sprites = [];
-        for (let i = 0; i < BLOCK_SIZE; i++) {
-            const sprite = new PIXI.Sprite();
-            sprite.width = TILE_SIZE;
-            sprite.height = TILE_SIZE;
-            sprite.visible = false;
-            this.next_container.addChild(sprite);
-            this.next_sprites.push(sprite);
         }
     }
 
@@ -924,20 +939,7 @@ class Game {
         // Update field sprites
         for (let row = 0; row < this.field.height; row++) {
             for (let col = 0; col < this.field.width; col++) {
-                const tile = this.field.get_tile(row, col);
-                const sprite = this.field.sprites[row][col];
-                if (tile.type === TILE_EMPTY) {
-                    sprite.visible = false;
-                } else {
-                    sprite.visible = true;
-                    let key;
-                    if (tile.type === TILE_CLEARED) {
-                        key = `coin${tile.frame + 1}`;
-                    } else if (IS_COLOR(tile.type)) {
-                        key = this.get_texture_key(tile.type, this.field.is_connected(row, col));
-                    }
-                    sprite.texture = this.textures[key];
-                }
+                this.field.get_tile(row, col).update_field_sprite(this, row, col, this.field.is_connected(row, col));
             }
         }
 
@@ -946,24 +948,13 @@ class Game {
             for (let i = 0; i < BLOCK_SIZE; i++) {
                 const row = this.field.current.get_row(i);
                 const col = this.field.current.get_col(i);
-                const sprite = this.field.current_sprites[i];
                 if (ON_FIELD(row, col, this.field.height, this.field.width)) {
-                    const type = this.field.current.get_tile(i).type;
-                    if (IS_COLOR(type)) {
-                        sprite.visible = true;
-                        sprite.texture = this.textures[this.get_texture_key(type, false)];
-                        sprite.x = col * TILE_SIZE;
-                        sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
-                    } else {
-                        sprite.visible = false;
-                    }
+                    this.field.current.get_tile(i).update_block_sprite(this, col * TILE_SIZE, (this.field.height - 1 - row) * TILE_SIZE);
                 } else {
-                    sprite.visible = false;
+                    if (this.field.current.get_tile(i).sprite) {
+                        this.field.current.get_tile(i).sprite.visible = false;
+                    }
                 }
-            }
-        } else {
-            for (let i = 0; i < BLOCK_SIZE; i++) {
-                this.field.current_sprites[i].visible = false;
             }
         }
 
@@ -971,20 +962,7 @@ class Game {
         const next = this.field.get_next();
         if (next) {
             for (let i = 0; i < BLOCK_SIZE; i++) {
-                const type = next.get_tile(i).type;
-                const sprite = this.next_sprites[i];
-                if (IS_COLOR(type)) {
-                    sprite.visible = true;
-                    sprite.texture = this.textures[this.get_texture_key(type, false)];
-                    sprite.y = (i % 2) * TILE_SIZE;
-                    sprite.x = Math.floor(i / 2) * TILE_SIZE;
-                } else {
-                    sprite.visible = false;
-                }
-            }
-        } else {
-            for (let i = 0; i < BLOCK_SIZE; i++) {
-                this.next_sprites[i].visible = false;
+                next.get_tile(i).update_block_sprite(this, (i % 2) * TILE_SIZE, Math.floor(i / 2) * TILE_SIZE);
             }
         }
     }
