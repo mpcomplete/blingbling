@@ -67,11 +67,13 @@ class Tile {
         this.sprite = null;
     }
 
+    remove_sprite() {
+        this.sprite?.parent?.removeChild(this.sprite);
+    }
+
     set_sprite(container) {
         if (this.sprite) {
-            if (this.sprite.parent) {
-                this.sprite.parent.removeChild(this.sprite);
-            }
+            this.remove_sprite();
         } else {
             this.sprite = new PIXI.Sprite();
             this.sprite.width = TILE_SIZE;
@@ -208,12 +210,6 @@ class Block {
         const angle = (1 - t) * this.start_angle + t * this.stop_angle;
         this.dy = Math.sin(angle);
         this.dx = Math.cos(angle);
-
-        // sequence(0, BLOCK_SIZE).forEach(i => {
-        //     console.log(`sprite ${i}`);
-        // //     console.log(`sprite ${i} = ${this.tiles[i].sprite}`);
-        //     this.tiles[i].sprite.position.set(this.get_x(i) * TILE_SIZE, this.get_y(i) * TILE_SIZE);
-        // });
     }
 
     rotate_right(anim = false) {
@@ -298,19 +294,7 @@ class Block {
     update_sprite(game, startY) {
         sequence(0, BLOCK_SIZE).forEach(i => {
             this.tiles[i].update_block_sprite(game, this.get_x(i)*TILE_SIZE, startY - this.get_y(i)*TILE_SIZE);
-            console.log(`tile ${i} = ${this.tiles[i].sprite.x}, ${this.tiles[i].sprite.y} from ${this.x}, ${this.y}`);
         });
-            // for (let i = 0; i < BLOCK_SIZE; i++) {
-            //     const row = this.field.current.get_row(i);
-            //     const col = this.field.current.get_col(i);
-            //     if (ON_FIELD(row, col, this.field.height, this.field.width)) {
-            //         // this.field.current.get_tile(i).update_block_sprite(this, col * TILE_SIZE, (this.field.height - 1 - row) * TILE_SIZE);
-            //     } else {
-            //         if (this.field.current.get_tile(i).sprite) {
-            //             this.field.current.get_tile(i).sprite.visible = false;
-            //         }
-            //     }
-            // }
     }
 }
 
@@ -631,6 +615,7 @@ class Field {
     clear_set_from(row, col, type) {
         if (!ON_FIELD(row, col, this.height, this.width) || this.data[row][col].type !== type) return 0;
         this.connected[row][col] = false;
+        this.data[row][col].remove_sprite();
         this.data[row][col] = new Tile(TILE_CLEARED);
         this.data[row][col].start(); // ?
         let num = 1;
