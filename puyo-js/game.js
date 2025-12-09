@@ -2,6 +2,7 @@
 const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
 const TILE_START = 1;
+const TILE_SIZE = 50; // pixels
 const NUM_TYPES = 7; // colors
 const BLOCK_SIZE = 2;
 const FIELD_WIDTH = 6;
@@ -40,6 +41,10 @@ const TILE_NAMES = ['bar', 'bell', 'cherry', 'diamond', 'lemon', 'goldbars', 'se
 // Utility
 function randInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function IS_COLOR(type) {
@@ -633,10 +638,9 @@ class Game {
         this.paused = false;
 
         // Pixi setup
-        this.app = new PIXI.Application({ width: 800, height: 600, backgroundColor: 0x333377 });
+        this.app = new PIXI.Application({ width: TILE_SIZE*FIELD_WIDTH, height: TILE_SIZE*FIELD_HEIGHT, backgroundColor: 0x333377 });
         document.body.appendChild(this.app.view);
 
-        this.tile_size = 32;
         this.field_container = new PIXI.Container();
         this.app.stage.addChild(this.field_container);
 
@@ -786,10 +790,10 @@ class Game {
                     continue;
                 }
                 const sprite = new PIXI.Sprite(this.textures[key]);
-                sprite.x = col * this.tile_size;
-                sprite.y = (this.field.height - 1 - row) * this.tile_size;
-                sprite.width = this.tile_size;
-                sprite.height = this.tile_size;
+                sprite.x = col * TILE_SIZE;
+                sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
+                sprite.width = TILE_SIZE;
+                sprite.height = TILE_SIZE;
                 this.field_container.addChild(sprite);
             }
         }
@@ -804,10 +808,10 @@ class Game {
                     if (IS_COLOR(type)) {
                         const key = this.get_texture_key(type, false);
                         const sprite = new PIXI.Sprite(this.textures[key]);
-                        sprite.x = col * this.tile_size;
-                        sprite.y = (this.field.height - 1 - row) * this.tile_size;
-                        sprite.width = this.tile_size;
-                        sprite.height = this.tile_size;
+                        sprite.x = col * TILE_SIZE;
+                        sprite.y = (this.field.height - 1 - row) * TILE_SIZE;
+                        sprite.width = TILE_SIZE;
+                        sprite.height = TILE_SIZE;
                         this.field_container.addChild(sprite);
                     }
                 }
