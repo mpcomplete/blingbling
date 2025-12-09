@@ -324,6 +324,9 @@ class Field {
                 this.data[row][col].tick(ms);
             }
         }
+        if (this.current) {
+          this.current.tick(ms);
+        }
 
         this.timer += ms;
 
