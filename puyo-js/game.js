@@ -243,7 +243,8 @@ class Block {
 
 // Field class
 class Field {
-    constructor(width = FIELD_WIDTH, height = FIELD_HEIGHT) {
+    constructor(game, width = FIELD_WIDTH, height = FIELD_HEIGHT) {
+        this.game = game;
         this.width = width;
         this.height = height;
         this.data = [];
@@ -492,7 +493,7 @@ class Field {
             }
         }
         if (new_connection) {
-            // Play sound
+            this.game.play_sound('lock');
         }
         this.state = CLEAR_SETS;
     }
@@ -511,6 +512,7 @@ class Field {
             const gain = Math.floor(bonus * POINTS_PER_CLEAR);
             this.score += gain;
             this.hazard_decrease(Math.floor(bonus * HAZARD_DROP_PER_CLEAR));
+            this.game.play_sound(`clear${Math.min(this.combo, 5)}`);
             this.state = WIPE_CLEARED;
             return gain;
         }
@@ -578,8 +580,10 @@ class Field {
             this.hazard_timer = 0;
             this.hazard_num++;
             if ((this.hazard_num % 2) === 1) {
+                this.game.play_sound('speedup');
                 this.speed++;
             } else {
+                this.game.play_sound('tiledump');
                 this.hazard_tiledump();
             }
         }
@@ -622,7 +626,7 @@ class Field {
 // Game class
 class Game {
     constructor() {
-        this.field = new Field();
+        this.field = new Field(this);
         this.last_time = 0;
         this.key_delay = new Array(NUM_KEYS).fill(0);
         this.key_handled = new Array(NUM_KEYS).fill(false);
@@ -638,6 +642,7 @@ class Game {
 
         this.textures = {};
         this.textures_loaded = false;
+        this.sounds = {};
 
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
@@ -647,6 +652,30 @@ class Game {
 
     async init() {
         await this.load_textures();
+        await this.load_sounds();
+        this.start_bgm();
+    }
+
+    async load_sounds() {
+        this.sounds.bgm = new Audio('assets/sounds/background.mp3');
+        this.sounds.bgm.loop = true;
+        this.sounds.lock = new Audio('assets/sounds/lock.wav');
+        this.sounds.speedup = new Audio('assets/sounds/speedup.wav');
+        this.sounds.tiledump = new Audio('assets/sounds/tiledump.wav');
+        for (let i = 1; i <= 5; i++) {
+            this.sounds[`clear${i}`] = new Audio(`assets/sounds/clear${i}.wav`);
+        }
+    }
+
+    start_bgm() {
+        this.sounds.bgm.play();
+    }
+
+    play_sound(name) {
+        if (this.sounds[name]) {
+            this.sounds[name].currentTime = 0;
+            this.sounds[name].play();
+        }
     }
 
     async load_textures() {
