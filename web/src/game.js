@@ -881,7 +881,7 @@ class Game {
         curY += spacing;
 
         // Progress bar background
-        let bounds = new PIXI.Rectangle(fieldBounds.left, fieldBounds.bottom + 10, fieldBounds.width, 10);
+        let bounds = new PIXI.Rectangle(fieldBounds.left, fieldBounds.bottom + 10, fieldBounds.width, 24);
         bounds.pad(3);
         const progressBg = new PIXI.Graphics().rect(bounds.x, bounds.y, bounds.width, bounds.height).fill(0x333333);
         this.app.stage.addChild(progressBg);
@@ -1044,7 +1044,7 @@ class Game {
         // Update progress bar
         this.progressBar.clear();
         const percent = this.field.get_hazard_percent();
-        this.progressBar.rect(0, 0, this.field_container.width * percent, 10).fill(0xff0000);
+        this.progressBar.rect(0, 0, this.field_container.width * percent, 24).fill(0xff0000);
 
         this.update_floating_texts(ms);
 
