@@ -755,13 +755,11 @@ class Game {
             container.pivot.x = container.width / 2;
             container.pivot.y = container.height / 2;
 
-            // Get bounds for positioning UI
-            this.fieldBounds = container.getBounds();
-
             // Add shadow
-            const fieldShadow = new PIXI.Graphics().rect(this.fieldBounds.x - 5, this.fieldBounds.y - 5, this.fieldBounds.width + 10, this.fieldBounds.height + 10).fill({color: 0x000000, alpha: 0.3});
-            this.app.stage.addChild(fieldShadow);
-
+            let shadowBounds = this.field_container.getBounds();
+            shadowBounds.pad(3);
+            const shadow = new PIXI.Graphics().rect(shadowBounds.left, shadowBounds.top, shadowBounds.width, shadowBounds.height).fill({color: 0x000000, alpha: 0.3});
+            this.app.stage.addChild(shadow);
             // Add container
             this.app.stage.addChild(container);
         }
@@ -781,9 +779,10 @@ class Game {
             this.next_container.y = fieldBounds.top;
 
             // Add shadow
-            const nextBounds = this.next_container.getBounds();
-            const nextShadow = new PIXI.Graphics().rect(nextBounds.x - 5, nextBounds.y - 5, nextBounds.width + 10, nextBounds.height + 10).fill({color: 0x000000, alpha: 0.3});
-            this.app.stage.addChild(nextShadow);
+            let shadowBounds = this.next_container.getBounds();
+            shadowBounds.pad(3);
+            const shadow = new PIXI.Graphics().rect(shadowBounds.left, shadowBounds.top, shadowBounds.width, shadowBounds.height).fill({color: 0x000000, alpha: 0.3});
+            this.app.stage.addChild(shadow);
 
             // Add container
             this.app.stage.addChild(this.next_container);
@@ -882,9 +881,9 @@ class Game {
         curY += spacing;
 
         // Progress bar background
-        const progressBg = new PIXI.Graphics().rect(0, 0, fieldBounds.width, 10).fill(0x333333);
-        progressBg.x = fieldBounds.left;
-        progressBg.y = fieldBounds.bottom + 10;
+        let bounds = new PIXI.Rectangle(fieldBounds.left, fieldBounds.bottom + 10, fieldBounds.width, 10);
+        bounds.pad(3);
+        const progressBg = new PIXI.Graphics().rect(bounds.x, bounds.y, bounds.width, bounds.height).fill(0x333333);
         this.app.stage.addChild(progressBg);
 
         // Progress bar
@@ -1045,7 +1044,7 @@ class Game {
         // Update progress bar
         this.progressBar.clear();
         const percent = this.field.get_hazard_percent();
-        this.progressBar.rect(0, 0, this.fieldBounds.width * percent, 10).fill(0xff0000);
+        this.progressBar.rect(0, 0, this.field_container.width * percent, 10).fill(0xff0000);
 
         this.update_floating_texts(ms);
 
