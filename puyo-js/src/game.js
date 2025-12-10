@@ -720,10 +720,7 @@ class Game {
     async init_app() {
         this.app = new PIXI.Application();
         await this.app.init({
-            // width: 50 + (TILE_SIZE)*FIELD_WIDTH + 200,
-            // height: 100 + TILE_SIZE*FIELD_HEIGHT,
             resizeTo: window,
-            // backgroundColor: 0x333333,
             backgroundAlpha: 0,
         });
         document.body.appendChild(this.app.canvas);
