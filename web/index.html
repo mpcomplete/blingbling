@@ -42,20 +42,6 @@
         #start-button:hover {
             background: #45a049;
         }
-        #game-ui {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: white;
-            font-size: 16px;
-            display: none;
-        }
-        #volume-controls {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            display: none;
-        }
         button {
             margin: 5px;
             padding: 5px 10px;
@@ -74,15 +60,6 @@
     <div id="start-screen">
         <h1>BlingBling</h1>
         <button id="start-button">Play</button>
-    </div>
-    <div id="game-ui">
-        <div>Score: <span id="score">0</span></div>
-        <div>Speed: <span id="speed">1</span></div>
-        <div>Best Combo: <span id="combo">0</span></div>
-    </div>
-    <div id="volume-controls">
-        <button id="music-toggle">Music: ON</button>
-        <button id="sfx-toggle">SFX: ON</button>
     </div>
     <script type="module" src="/src/game.js"></script>
 </body>

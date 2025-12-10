@@ -719,7 +719,6 @@ class Game {
         this.sfxBtn = null;
 
         this.setup_start_button();
-        this.setup_volume_buttons();
     }
 
     async init() {
@@ -797,22 +796,6 @@ class Game {
             this.app.canvas.style.display = 'block';
             document.getElementById('start-screen').style.display = 'none';
             this.start_game();
-        });
-    }
-
-    setup_volume_buttons() {
-        const musicBtn = document.getElementById('music-toggle');
-        const sfxBtn = document.getElementById('sfx-toggle');
-
-        musicBtn.addEventListener('click', () => {
-            this.music_on = !this.music_on;
-            musicBtn.textContent = `Music: ${this.music_on ? 'ON' : 'OFF'}`;
-            if (this.sounds.bgm) this.sounds.bgm.volume = this.music_on ? 1 : 0;
-        });
-
-        sfxBtn.addEventListener('click', () => {
-            this.sfx_on = !this.sfx_on;
-            sfxBtn.textContent = `SFX: ${this.sfx_on ? 'ON' : 'OFF'}`;
         });
     }
 
