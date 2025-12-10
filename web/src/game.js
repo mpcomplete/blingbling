@@ -718,6 +718,9 @@ class Game {
         this.musicBtn = null;
         this.sfxBtn = null;
 
+        this.gameOverShown = false;
+        this.gameOverOverlay = null;
+
         this.setup_start_button();
     }
 
@@ -1006,7 +1009,13 @@ class Game {
         const ms = now - this.last_time;
         this.last_time = now;
 
-        if (this.field.game_over()) return;
+        if (this.field.game_over()) {
+            if (!this.gameOverShown) {
+                this.show_game_over();
+                this.gameOverShown = true;
+            }
+            return;
+        }
 
         if (this.paused) return;
 
@@ -1055,6 +1064,67 @@ class Game {
     get_texture_key(type, connected) {
         const name = TILE_NAMES[type - 1];
         return connected ? `c${name}` : name;
+    }
+
+    show_game_over() {
+        // Create overlay
+        this.gameOverOverlay = new PIXI.Container();
+        this.gameOverOverlay.x = this.app.screen.width / 2;
+        this.gameOverOverlay.y = this.app.screen.height / 2;
+        this.gameOverOverlay.pivot.x = this.gameOverOverlay.width / 2;
+        this.gameOverOverlay.pivot.y = this.gameOverOverlay.height / 2;
+
+        // Semi-transparent background
+        const bg = new PIXI.Graphics().rect(-this.app.screen.width / 2, -this.app.screen.height / 2, this.app.screen.width, this.app.screen.height).fill({color: 0x000000, alpha: 0.7});
+        this.gameOverOverlay.addChild(bg);
+
+        // Game Over text
+        const gameOverText = new PIXI.BitmapText({
+            text: 'GAME OVER',
+            style: FONT_STYLE_LARGE,
+        });
+        gameOverText.anchor.set(0.5);
+        gameOverText.y = -150;
+        this.gameOverOverlay.addChild(gameOverText);
+
+        // Final Score
+        const scoreText = new PIXI.BitmapText({
+            text: `Final Score: ${this.field.get_score()}`,
+            style: FONT_STYLE,
+        });
+        scoreText.anchor.set(0.5);
+        scoreText.y = -50;
+        this.gameOverOverlay.addChild(scoreText);
+
+        // Best Combo
+        const comboText = new PIXI.BitmapText({
+            text: `Best Combo: ${this.field.get_best_combo()}`,
+            style: FONT_STYLE,
+        });
+        comboText.anchor.set(0.5);
+        comboText.y = 0;
+        this.gameOverOverlay.addChild(comboText);
+
+        // Restart button
+        const restartBtn = new PIXI.BitmapText({
+            text: 'RESTART',
+            style: FONT_STYLE,
+        });
+        restartBtn.anchor.set(0.5);
+        restartBtn.y = 100;
+        restartBtn.interactive = true;
+        restartBtn.on('pointerdown', () => {
+            window.location.reload();
+        });
+        restartBtn.on('pointerover', () => {
+            restartBtn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
+        });
+        restartBtn.on('pointerout', () => {
+            restartBtn.style = FONT_STYLE;
+        });
+        this.gameOverOverlay.addChild(restartBtn);
+
+        this.app.stage.addChild(this.gameOverOverlay);
     }
 
     render() {
