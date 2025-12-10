@@ -40,6 +40,9 @@ const NUM_KEYS = 6;
 
 const TILE_NAMES = ['bar', 'bell', 'cherry', 'diamond', 'lemon', 'goldbars', 'seven'];
 
+const FONT_STYLE = { fontFamily: 'Desyrel', fontSize: 36 };
+const FONT_STYLE_LARGE = { fontFamily: 'Desyrel', fontSize: 64 };
+
 // Utility
 const randInt = (min, max) => Math.floor(Math.random() * (max - min)) + min;
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -333,7 +336,7 @@ class Field {
     get_score() { return this.score; }
     get_best_combo() { return this.best_combo; }
     get_speed() { return this.speed; }
-    get_hazard_percent() { return this.hazard_timer / (HAZARD_INTERVAL * 1000); }
+    get_hazard_percent() { return Math.min(1, this.hazard_timer / (HAZARD_INTERVAL * 1000)); }
     get_next() { return this.next; }
     get_block() { return this.current; }
     get_tile(row, col) { return this.data[row][col]; }
@@ -707,6 +710,14 @@ class Game {
         this.sounds = {};
         this.floating_texts = [];
 
+        this.scoreText = null;
+        this.speedText = null;
+        this.comboText = null;
+        this.progressBar = null;
+        this.fieldBounds = null;
+        this.musicBtn = null;
+        this.sfxBtn = null;
+
         this.setup_start_button();
         this.setup_volume_buttons();
     }
@@ -728,7 +739,6 @@ class Game {
 
         {
             this.field_container = new PIXI.Container();
-            this.app.stage.addChild(this.field_container);
 
             const container = this.field_container;
             const bg = new PIXI.Graphics().rect(0, 0, TILE_SIZE*FIELD_WIDTH, TILE_SIZE*FIELD_HEIGHT).fill(0x999999);
@@ -745,12 +755,21 @@ class Game {
             // Center the bunny sprites in local container coordinates
             container.pivot.x = container.width / 2;
             container.pivot.y = container.height / 2;
+
+            // Get bounds for positioning UI
+            this.fieldBounds = container.getBounds();
+
+            // Add shadow
+            const fieldShadow = new PIXI.Graphics().rect(this.fieldBounds.x - 5, this.fieldBounds.y - 5, this.fieldBounds.width + 10, this.fieldBounds.height + 10).fill({color: 0x000000, alpha: 0.3});
+            this.app.stage.addChild(fieldShadow);
+
+            // Add container
+            this.app.stage.addChild(container);
         }
 
         // Next block viewport
         {
             this.next_container = new PIXI.Container();
-            this.app.stage.addChild(this.next_container);
 
             const bg = new PIXI.Graphics().rect(0, 0, TILE_SIZE, TILE_SIZE*2).fill(0x999999);
             this.next_container.addChild(bg);
@@ -761,6 +780,14 @@ class Game {
             const fieldBounds = this.field_container.getBounds();
             this.next_container.x = fieldBounds.right + 25;
             this.next_container.y = fieldBounds.top;
+
+            // Add shadow
+            const nextBounds = this.next_container.getBounds();
+            const nextShadow = new PIXI.Graphics().rect(nextBounds.x - 5, nextBounds.y - 5, nextBounds.width + 10, nextBounds.height + 10).fill({color: 0x000000, alpha: 0.3});
+            this.app.stage.addChild(nextShadow);
+
+            // Add container
+            this.app.stage.addChild(this.next_container);
         }
     }
 
@@ -769,8 +796,6 @@ class Game {
         startBtn.addEventListener('click', () => {
             this.app.canvas.style.display = 'block';
             document.getElementById('start-screen').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
-            document.getElementById('volume-controls').style.display = 'block';
             this.start_game();
         });
     }
@@ -791,14 +816,110 @@ class Game {
         });
     }
 
+    setup_ui() {
+        const fieldBounds = this.field_container.getBounds();
+        const nextBounds = this.next_container.getBounds();
+
+        let curX = nextBounds.left;
+        let curY = nextBounds.bottom + 100;
+        const spacing = 50;
+
+        // Score text
+        this.scoreText = new PIXI.BitmapText({
+            text: 'Score: 0',
+            style: FONT_STYLE,
+        });
+        this.scoreText.x = curX;
+        this.scoreText.y = curY;
+        this.app.stage.addChild(this.scoreText);
+        curY += spacing;
+
+        // Speed text
+        this.speedText = new PIXI.BitmapText({
+            text: 'Speed: 0',
+            style: FONT_STYLE,
+        });
+        this.speedText.x = curX;
+        this.speedText.y = curY;
+        this.app.stage.addChild(this.speedText);
+        curY += spacing;
+
+        // Combo text
+        this.comboText = new PIXI.BitmapText({
+            text: 'Best Combo: 0',
+            style: FONT_STYLE,
+        });
+        this.comboText.x = curX;
+        this.comboText.y = curY;
+        this.app.stage.addChild(this.comboText);
+        curY += spacing;
+
+        curY = fieldBounds.bottom - spacing*2;
+        // Music button
+        this.musicBtn = new PIXI.BitmapText({
+            text: 'Music: ON',
+            style: FONT_STYLE,
+        });
+        this.musicBtn.x = curX;
+        this.musicBtn.y = curY;
+        this.musicBtn.interactive = true;
+        this.musicBtn.on('pointerdown', () => {
+            this.music_on = !this.music_on;
+            this.musicBtn.text = `Music: ${this.music_on ? 'ON' : 'OFF'}`;
+            if (this.sounds.bgm) this.sounds.bgm.volume = this.music_on ? 1 : 0;
+        });
+        this.musicBtn.on('pointerover', () => {
+            this.musicBtn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
+        });
+        this.musicBtn.on('pointerout', () => {
+            this.musicBtn.style = FONT_STYLE;
+        });
+        this.app.stage.addChild(this.musicBtn);
+        curY += spacing;
+
+        // SFX button
+        this.sfxBtn = new PIXI.BitmapText({
+            text: 'SFX: ON',
+            style: FONT_STYLE,
+        });
+        this.sfxBtn.x = curX;
+        this.sfxBtn.y = curY;
+        this.sfxBtn.interactive = true;
+        this.sfxBtn.on('pointerdown', () => {
+            this.sfx_on = !this.sfx_on;
+            this.sfxBtn.text = `SFX: ${this.sfx_on ? 'ON' : 'OFF'}`;
+        });
+        this.sfxBtn.on('pointerover', () => {
+            this.sfxBtn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
+        });
+        this.sfxBtn.on('pointerout', () => {
+            this.sfxBtn.style = FONT_STYLE;
+        });
+        this.app.stage.addChild(this.sfxBtn);
+        curY += spacing;
+
+        // Progress bar background
+        const progressBg = new PIXI.Graphics().rect(0, 0, fieldBounds.width, 10).fill(0x333333);
+        progressBg.x = fieldBounds.left;
+        progressBg.y = fieldBounds.bottom + 10;
+        this.app.stage.addChild(progressBg);
+
+        // Progress bar
+        this.progressBar = new PIXI.Graphics();
+        this.progressBar.x = fieldBounds.left;
+        this.progressBar.y = fieldBounds.bottom + 10;
+        this.app.stage.addChild(this.progressBar);
+    }
+
     start_game() {
         this.started = true;
         this.field = new Field(this);
-        this.last_time = 0;
+        this.last_time = performance.now();
         this.key_delay = new Array(NUM_KEYS).fill(0);
         this.key_handled = new Array(NUM_KEYS).fill(false);
         this.paused = false;
 
+        this.setup_ui();
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
         this.start_bgm();
@@ -830,11 +951,7 @@ class Game {
     add_floating_text(gain, row, col) {
         const text = new PIXI.BitmapText({
             text: `+${gain}`,
-            style: {
-                fontFamily: 'Desyrel',
-                fontSize: 50,
-                letterSpacing: 10,
-            },
+            style: FONT_STYLE_LARGE,
             anchor: 0.5,
         });
         const fieldBounds = this.field_container.getBounds();
@@ -938,9 +1055,14 @@ class Game {
         this.field.tick(ms);
 
         // Update UI
-        document.getElementById('score').textContent = this.field.get_score();
-        document.getElementById('speed').textContent = this.field.get_speed();
-        document.getElementById('combo').textContent = this.field.get_best_combo();
+        this.scoreText.text = `Score: ${this.field.get_score()}`;
+        this.speedText.text = `Speed: ${this.field.get_speed()}`;
+        this.comboText.text = `Best Combo: ${this.field.get_best_combo()}`;
+
+        // Update progress bar
+        this.progressBar.clear();
+        const percent = this.field.get_hazard_percent();
+        this.progressBar.rect(0, 0, this.fieldBounds.width * percent, 10).fill(0xff0000);
 
         this.update_floating_texts(ms);
 
