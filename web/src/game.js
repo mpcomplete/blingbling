@@ -55,6 +55,8 @@ function* sequence(a, b) {
 const IS_COLOR = (type) => TILE_START <= type && type <= NUM_TYPES;
 const ON_FIELD = (row, col, height, width) => row >= 0 && row < height && col >= 0 && col < width;
 
+PIXI.Rectangle.prototype.asArray = function () { return [this.x, this.y, this.width, this.height]; }
+
 // Tile class
 class Tile {
     static rand() { return randInt(TILE_START, NUM_TYPES+1); }
@@ -920,6 +922,19 @@ class Game {
     create_button_common(text, x, y, callback, btn) {
         const BUTTON_REPEAT_INITIAL = 200;
         const BUTTON_REPEAT_HELD = 20;
+
+        // const hackyOffset = 0;
+        const hackyOffset = btn instanceof PIXI.BitmapText ? 4 : 0;
+        console.log(typeof(btn));
+        console.log(typeof(PIXI.BitmapText));
+
+        let bgRect = new PIXI.Rectangle(x-5, y+hackyOffset*3, btn.width+10, btn.height+hackyOffset);
+        const bgIn = new PIXI.Graphics().rect(...bgRect.asArray()).fill(0x80621d);
+        this.app.stage.addChild(bgIn);
+        bgRect.pad(-3);
+        const bgOut = new PIXI.Graphics().rect(...bgRect.asArray()).fill(0xa88532);
+        this.app.stage.addChild(bgOut);
+
         btn.x = x;
         btn.y = y;
         btn.interactive = true;
@@ -946,6 +961,7 @@ class Game {
             btn.style = FONT_STYLE;
         });
         this.app.stage.addChild(btn);
+
         return btn;
     }
 
