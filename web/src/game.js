@@ -801,6 +801,39 @@ class Game {
         });
     }
 
+    create_button(text, x, y, callback) {
+        const btn = new PIXI.BitmapText({
+            text: text,
+            style: FONT_STYLE,
+        });
+        btn.x = x;
+        btn.y = y;
+        btn.interactive = true;
+        btn.isPressed = false;
+        btn.on('pointerdown', () => {
+            btn.isPressed = true;
+            if (callback) callback();
+        });
+        btn.on('pointerup', () => {
+            btn.isPressed = false;
+        });
+        btn.on('pointerupoutside', () => {
+            btn.isPressed = false;
+        });
+        btn.on('pointerover', () => {
+            btn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
+        });
+        btn.on('pointerout', () => {
+            btn.style = FONT_STYLE;
+        });
+        this.app.stage.addChild(btn);
+        return btn;
+    }
+
+    is_mobile() {
+        return window.innerWidth < 1000 || 'ontouchstart' in window;
+    }
+
     setup_ui() {
         const fieldBounds = this.field_container.getBounds();
         const nextBounds = this.next_container.getBounds();
@@ -841,46 +874,18 @@ class Game {
 
         curY = fieldBounds.bottom - spacing*2;
         // Music button
-        this.musicBtn = new PIXI.BitmapText({
-            text: 'Music: ON',
-            style: FONT_STYLE,
-        });
-        this.musicBtn.x = curX;
-        this.musicBtn.y = curY;
-        this.musicBtn.interactive = true;
-        this.musicBtn.on('pointerdown', () => {
+        this.musicBtn = this.create_button('Music: ON', curX, curY, () => {
             this.music_on = !this.music_on;
             this.musicBtn.text = `Music: ${this.music_on ? 'ON' : 'OFF'}`;
             if (this.sounds.bgm) this.sounds.bgm.volume = this.music_on ? 1 : 0;
         });
-        this.musicBtn.on('pointerover', () => {
-            this.musicBtn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
-        });
-        this.musicBtn.on('pointerout', () => {
-            this.musicBtn.style = FONT_STYLE;
-        });
-        this.app.stage.addChild(this.musicBtn);
         curY += spacing;
 
         // SFX button
-        this.sfxBtn = new PIXI.BitmapText({
-            text: 'SFX: ON',
-            style: FONT_STYLE,
-        });
-        this.sfxBtn.x = curX;
-        this.sfxBtn.y = curY;
-        this.sfxBtn.interactive = true;
-        this.sfxBtn.on('pointerdown', () => {
+        this.sfxBtn = this.create_button('SFX: ON', curX, curY, () => {
             this.sfx_on = !this.sfx_on;
             this.sfxBtn.text = `SFX: ${this.sfx_on ? 'ON' : 'OFF'}`;
         });
-        this.sfxBtn.on('pointerover', () => {
-            this.sfxBtn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
-        });
-        this.sfxBtn.on('pointerout', () => {
-            this.sfxBtn.style = FONT_STYLE;
-        });
-        this.app.stage.addChild(this.sfxBtn);
         curY += spacing;
 
         // Progress bar background
@@ -894,6 +899,41 @@ class Game {
         this.progressBar.x = fieldBounds.left;
         this.progressBar.y = fieldBounds.bottom + 10;
         this.app.stage.addChild(this.progressBar);
+
+        // Mobile scaling and buttons
+        if (this.is_mobile()) {
+            const scale = Math.min(window.innerWidth / (TILE_SIZE * FIELD_WIDTH + 200), window.innerHeight / (TILE_SIZE * FIELD_HEIGHT + 300));
+            this.field_container.scale.set(scale);
+            this.next_container.scale.set(scale);
+            this.scoreText.scale.set(scale);
+            this.speedText.scale.set(scale);
+            this.comboText.scale.set(scale);
+            this.musicBtn.scale.set(scale);
+            this.sfxBtn.scale.set(scale);
+            this.progressBar.scale.set(scale);
+            progressBg.scale.set(scale);
+
+            // Reposition containers
+            this.field_container.x = window.innerWidth / 2;
+            this.field_container.y = window.innerHeight / 2 - 100;
+            this.next_container.x = this.field_container.x + (this.field_container.width * scale) / 2 + 25 * scale;
+            this.next_container.y = this.field_container.y - (this.field_container.height * scale) / 2;
+
+            // Mobile buttons at bottom
+            const btnY = window.innerHeight - 80;
+            const btnSpacing = 80;
+            let btnX = window.innerWidth / 2 - btnSpacing * 2;
+
+            this.leftBtn = this.create_button('←', btnX, btnY, () => this.field.block_move_left());
+            btnX += btnSpacing;
+            this.downBtn = this.create_button('↓', btnX, btnY, () => this.field.block_move_down());
+            btnX += btnSpacing;
+            this.rightBtn = this.create_button('→', btnX, btnY, () => this.field.block_move_right());
+            btnX += btnSpacing;
+            this.rotateLeftBtn = this.create_button('↺', btnX, btnY, () => this.field.block_rotate_left());
+            btnX += btnSpacing;
+            this.rotateRightBtn = this.create_button('↻', btnX, btnY, () => this.field.block_rotate_right());
+        }
     }
 
     start_game() {
@@ -1041,6 +1081,25 @@ class Game {
         if (this.key_delay[KEY_ROTATE_LEFT] && !this.key_handled[KEY_ROTATE_LEFT]) {
             this.field.block_rotate_left();
             this.key_handled[KEY_ROTATE_LEFT] = true;
+        }
+
+        // Handle mobile button presses (simulate key presses)
+        if (this.is_mobile()) {
+            if (this.leftBtn && this.leftBtn.isPressed) {
+                this.field.block_move_left();
+            }
+            if (this.rightBtn && this.rightBtn.isPressed) {
+                this.field.block_move_right();
+            }
+            if (this.downBtn && this.downBtn.isPressed) {
+                this.field.block_move_down();
+            }
+            if (this.rotateLeftBtn && this.rotateLeftBtn.isPressed) {
+                this.field.block_rotate_left();
+            }
+            if (this.rotateRightBtn && this.rotateRightBtn.isPressed) {
+                this.field.block_rotate_right();
+            }
         }
 
         this.field.tick(ms);
