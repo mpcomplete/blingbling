@@ -5,7 +5,7 @@ const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
 const TILE_START = 1;
 const TILE_SIZE = 50; // pixels
-const NUM_TYPES = 4; // colors
+const NUM_TYPES = 7; // colors
 const BLOCK_SIZE = 2;
 const FIELD_WIDTH = 6;
 const FIELD_HEIGHT = 12;
@@ -43,6 +43,7 @@ const TILE_NAMES = ['bar', 'bell', 'cherry', 'diamond', 'lemon', 'goldbars', 'se
 // Utility
 const randInt = (min, max) => Math.floor(Math.random() * (max - min)) + min;
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const until = async (f) => { while (!f()) await sleep(1/30); }
 function* sequence(a, b) {
     for (let cur = a; cur < b; cur++)
         yield cur;
@@ -98,7 +99,6 @@ class Tile {
             if (this.frame == 6) {
                 this.type = TILE_EMPTY;
                 this.remove_sprite();
-                console.log(`FRAME 6 at ${row},${col}`);
                 return;
             }
             key = `coin${this.frame + 1}`;
@@ -562,6 +562,13 @@ class Field {
         this.state = CLEAR_SETS;
     }
 
+    calc_score(num_cleared) {
+        const tbonus = 1 + (num_cleared - CLEAR_MIN) / 2.0;
+        const cbonus = Math.pow(3, this.combo);
+        const bonus = tbonus * cbonus;
+        return [Math.floor(bonus * POINTS_PER_CLEAR), bonus];
+    }
+
     add_score(num_cleared) {
         if (num_cleared === 0) {
             if (this.combo > this.best_combo) this.best_combo = this.combo;
@@ -569,31 +576,30 @@ class Field {
             this.state = HAZARD_CHECK;
             return 0;
         } else {
+            const [gain, bonus] = this.calc_score(num_cleared);
             this.combo++;
-            const tbonus = 1 + (num_cleared - CLEAR_MIN) / 2.0;
-            const cbonus = Math.pow(3, this.combo - 1);
-            const bonus = tbonus * cbonus;
-            const gain = Math.floor(bonus * POINTS_PER_CLEAR);
             this.score += gain;
             this.hazard_decrease(Math.floor(bonus * HAZARD_DROP_PER_CLEAR));
             this.game.play_sound(`clear${Math.min(this.combo, 5)}`);
-            this.game.add_floating_text(gain);
             this.state = WIPE_CLEARED;
             return gain;
         }
     }
 
     clear_sets() {
-        let num_cleared = 0;
+        let total_cleared = 0;
         for (let row = 0; row < this.height; row++) {
             for (let col = 0; col < this.width; col++) {
                 if (!IS_COLOR(this.data[row][col].type)) continue;
                 if (this.check_set_from(row, col, this.data[row][col].type) >= CLEAR_MIN) {
-                    num_cleared += this.clear_set_from(row, col, this.data[row][col].type);
+                    let num_cleared = this.clear_set_from(row, col, this.data[row][col].type);
+                    const [gain, bonus] = this.calc_score(num_cleared);
+                    this.game.add_floating_text(gain, row, col);
+                    total_cleared += num_cleared;
                 }
             }
         }
-        this.add_score(num_cleared);
+        this.add_score(total_cleared);
     }
 
     check_set_from(row, col, type) {
@@ -634,9 +640,7 @@ class Field {
                 }
             }
             for (let r = write_row; r < this.height; r++) {
-                // this.data[r][col].remove_sprite();
                 this.data[r][col] = new Tile(TILE_EMPTY);
-                // console.log(`setting empty ${r},${col}`);
                 this.connected[r][col] = false;
             }
         }
@@ -814,7 +818,8 @@ class Game {
         }
     }
 
-    start_bgm() {
+    async start_bgm() {
+        await until(() => this.sounds.bgm);
         this.sounds.bgm.play();
     }
 
@@ -825,16 +830,19 @@ class Game {
         }
     }
 
-    add_floating_text(gain) {
-        const text = new PIXI.Text(`+${gain}`, {
-            fontFamily: 'Arial',
-            fontSize: 24,
-            fill: 0xffffff,
-            stroke: 0x000000,
-            strokeThickness: 2
+    add_floating_text(gain, row, col) {
+        const text = new PIXI.BitmapText({
+            text: `+${gain}`,
+            style: {
+                fontFamily: 'Desyrel',
+                fontSize: 50,
+                letterSpacing: 10,
+            },
+            anchor: 0.5,
         });
-        text.x = this.field_container.x + FIELD_WIDTH * TILE_SIZE / 2 - text.width / 2;
-        text.y = this.field_container.y + FIELD_HEIGHT * TILE_SIZE / 2;
+        const fieldBounds = this.field_container.getBounds();
+        text.x = fieldBounds.left + col * TILE_SIZE;
+        text.y = fieldBounds.bottom - row * TILE_SIZE;
         this.app.stage.addChild(text);
         this.floating_texts.push({ text, y: text.y, time: 0 });
     }
@@ -853,7 +861,9 @@ class Game {
     }
 
     async load_textures() {
-        // const type_names = Array.from({length: NUM_TYPES}, i => 'seven');
+        // Font
+        await PIXI.Assets.load('https://pixijs.com/assets/bitmap-font/desyrel.xml');
+
         // Load normal and connected
         for (let i = 0; i < NUM_TYPES; i++) {
             const name = TILE_NAMES[i];
