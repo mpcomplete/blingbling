@@ -5,6 +5,7 @@ export default defineConfig({
     port: 3000,
     open: true
   },
+  base: '/blingbling',
   build: {
     outDir: 'dist'
   }

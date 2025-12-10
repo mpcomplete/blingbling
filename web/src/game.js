@@ -911,13 +911,13 @@ class Game {
     }
 
     async load_sounds() {
-        this.sounds.bgm = new Audio('assets/sounds/background.mp3');
+        this.sounds.bgm = new Audio('/blingbling/assets/sounds/background.mp3');
         this.sounds.bgm.loop = true;
-        this.sounds.lock = new Audio('assets/sounds/lock.wav');
-        this.sounds.speedup = new Audio('assets/sounds/speedup.wav');
-        this.sounds.tiledump = new Audio('assets/sounds/tiledump.wav');
+        this.sounds.lock = new Audio('/blingbling/assets/sounds/lock.wav');
+        this.sounds.speedup = new Audio('/blingbling/assets/sounds/speedup.wav');
+        this.sounds.tiledump = new Audio('/blingbling/assets/sounds/tiledump.wav');
         for (let i = 1; i <= 5; i++) {
-            this.sounds[`clear${i}`] = new Audio(`assets/sounds/clear${i}.wav`);
+            this.sounds[`clear${i}`] = new Audio(`/blingbling/assets/sounds/clear${i}.wav`);
         }
     }
 
