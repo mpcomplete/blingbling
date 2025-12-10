@@ -5,7 +5,7 @@ const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
 const TILE_START = 1;
 const TILE_SIZE = 50; // pixels
-const NUM_TYPES = 7; // colors
+const NUM_TYPES = 4; // colors
 const BLOCK_SIZE = 2;
 const FIELD_WIDTH = 6;
 const FIELD_HEIGHT = 12;
@@ -55,7 +55,7 @@ const ON_FIELD = (row, col, height, width) => row >= 0 && row < height && col >=
 class Tile {
     static rand() { return randInt(TILE_START, NUM_TYPES+1); }
 
-    constructor(type = null) {
+    constructor(type = null, container = null) {
         if (type === null) {
             this.type = TILE_EMPTY;
         } else {
@@ -65,6 +65,9 @@ class Tile {
         this.frame = 0;
         this.started = false;
         this.sprite = null;
+
+        if (container)
+          this.set_sprite(container);
     }
 
     remove_sprite() {
@@ -85,12 +88,19 @@ class Tile {
     update_field_sprite(game, row, col, connected) {
         if (!this.sprite) return;
         if (this.type === TILE_EMPTY) {
+            this.remove_sprite();
             this.sprite.visible = false;
             return;
         }
         this.sprite.visible = true;
         let key;
         if (this.type === TILE_CLEARED) {
+            if (this.frame == 6) {
+                this.type = TILE_EMPTY;
+                this.remove_sprite();
+                console.log(`FRAME 6 at ${row},${col}`);
+                return;
+            }
             key = `coin${this.frame + 1}`;
         } else if (IS_COLOR(this.type)) {
             key = game.get_texture_key(this.type, connected);
@@ -116,7 +126,7 @@ class Tile {
     tick(ms) {
         if (this.started) {
             this.age += ms;
-            this.frame = Math.floor(this.age / 66) % 6; // 6 frames, ~66ms each for 400ms total
+            this.frame = Math.min(6, Math.floor(this.age / 66)); // 6 frames, ~66ms each for 400ms total
         }
     }
 
@@ -133,10 +143,7 @@ class Block {
         this.orient = NORTH;
         this.tiles = [];
         for (let i = 0; i < BLOCK_SIZE; i++) {
-            this.tiles.push(new Tile(y != null ? Tile.rand() : null));
-            if (container) {
-                this.tiles[i].set_sprite(container);
-            }
+            this.tiles.push(new Tile(Tile.rand(), container));
         }
         this.y = y !== null ? y : 0;
         this.x = x !== null ? x : 0;
@@ -152,14 +159,6 @@ class Block {
         this.orient = b.orient;
         this.x = b.x;
         this.y = b.y;
-    }
-
-    start_tiles() {
-        // In JS, no global ticker, just set running
-    }
-
-    stop_tiles() {
-        //
     }
 
     get_y(n) {
@@ -310,8 +309,7 @@ class Field {
             this.data[i] = [];
             this.connected[i] = [];
             for (let j = 0; j < width; j++) {
-                this.data[i][j] = new Tile(TILE_EMPTY);
-                this.data[i][j].set_sprite(this.game.field_container);
+                this.data[i][j] = new Tile(TILE_EMPTY, this.game.field_container);
                 this.connected[i][j] = false;
             }
         }
@@ -383,7 +381,7 @@ class Field {
                 break;
             case WIPE_CLEARED:
                 // Simplified, no sprite duration
-                if (this.timer >= 400) {
+                if (this.timer >= 450) {
                     this.wipe_cleared();
                     this.timer = 0;
                 }
@@ -522,7 +520,6 @@ class Field {
 
     block_lock() {
         if (this.state !== BLOCK_FALLING) return false;
-        this.current.stop_tiles();
         for (let i = 0; i < BLOCK_SIZE; i++) {
             let n = i;
             if (this.current.get_orient() === SOUTH) n = BLOCK_SIZE - 1 - i;
@@ -616,8 +613,8 @@ class Field {
         if (!ON_FIELD(row, col, this.height, this.width) || this.data[row][col].type !== type) return 0;
         this.connected[row][col] = false;
         this.data[row][col].remove_sprite();
-        this.data[row][col] = new Tile(TILE_CLEARED);
-        this.data[row][col].start(); // ?
+        this.data[row][col] = new Tile(TILE_CLEARED, this.game.field_container);
+        this.data[row][col].start();
         let num = 1;
         num += this.clear_set_from(row - 1, col, type);
         num += this.clear_set_from(row + 1, col, type);
@@ -637,7 +634,9 @@ class Field {
                 }
             }
             for (let r = write_row; r < this.height; r++) {
+                // this.data[r][col].remove_sprite();
                 this.data[r][col] = new Tile(TILE_EMPTY);
+                // console.log(`setting empty ${r},${col}`);
                 this.connected[r][col] = false;
             }
         }
@@ -674,8 +673,7 @@ class Field {
         for (let col = 0; col < this.width; col++) {
             let attempts = 50;
             do {
-                this.data[0][col] = new Tile(Tile.rand());
-                this.data[0][col].set_sprite(this.game.field_container);
+                this.data[0][col] = new Tile(Tile.rand(), this.game.field_container);
                 attempts--;
             } while (attempts > 0 &&
                       ((col >= 2 && this.data[0][col - 2].type === this.data[0][col - 1].type && this.data[0][col - 1].type === this.data[0][col].type) ||
