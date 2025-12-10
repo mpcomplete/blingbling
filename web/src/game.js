@@ -730,23 +730,11 @@ class Game {
         await this.init_app();
     }
 
-    actualWidth() {
-        const { width, height } = this.app.screen;
-        const isWidthConstrained = width < height * 9 / 16;
-        return isWidthConstrained ? width : height * 9 / 16;
+    get desiredWidth() {
+        return TILE_SIZE*FIELD_WIDTH + 280;
     }
 
-    actualHeight() {
-        const { width, height } = this.app.screen;
-        const isHeightConstrained = width * 16 / 9 > height;
-        return isHeightConstrained ? height : width * 16 / 9;
-    }
-
-    get WIDTH() {
-        return TILE_SIZE*FIELD_WIDTH + 200;
-    }
-
-    get HEIGHT() {
+    get desiredHeight() {
         return TILE_SIZE*FIELD_HEIGHT + 100;
     }
 
@@ -759,12 +747,8 @@ class Game {
         document.body.appendChild(this.app.canvas);
         this.app.canvas.style.display = 'none';
 
-        const tmp = new PIXI.Graphics().rect(0, 0, this.WIDTH, this.HEIGHT)
-        .fill({color: 0x000011, alpha: 0.3});
-        this.app.stage.addChild(tmp);
-
         {
-            this.field_container = new PIXI.Container();
+            this.field_container = new PIXI.Container({x: 10, y: 10});
 
             const container = this.field_container;
             const bg = new PIXI.Graphics().rect(0, 0, TILE_SIZE*FIELD_WIDTH, TILE_SIZE*FIELD_HEIGHT).fill(0x999999);
@@ -773,15 +757,6 @@ class Game {
             const mask = bg.clone();
             container.mask = mask;
             container.addChild(mask);
-
-            // Move the container to the center
-            container.x = this.WIDTH / 2;
-            container.y = this.HEIGHT / 2;
-
-            // Center the bunny sprites in local container coordinates
-            // container.pivot.x = container.width / 2;
-            container.pivot.x = container.width / 2;
-            container.pivot.y = container.height / 2;
 
             // Add shadow
             let shadowBounds = this.field_container.getBounds();
@@ -820,9 +795,18 @@ class Game {
 
         this.setup_ui();
 
-        const scale = this.app.screen.width < 1000 ? this.actualWidth() / this.WIDTH : 1;
-        console.log(`a`,window.innerWidth, window.innerHeight, this.actualWidth(), this.actualHeight());
-        console.log(`b`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.WIDTH, this.HEIGHT);
+        const tmp = new PIXI.Graphics().rect(0, 0, this.desiredWidth, this.desiredHeight)
+        .fill({color: 0x000011, alpha: 0.3});
+        this.app.stage.addChild(tmp);
+
+        const scaleW = this.app.screen.width / this.desiredWidth;
+        const scaleH = this.app.screen.height / this.desiredHeight;
+        const scale = Math.min(scaleW, scaleH);
+        // const scale = Math.min(1, Math.min(scaleW, scaleH));
+        console.log('scale', scale);
+        // const scale = 1;
+        console.log(`a`,window.innerWidth, window.innerHeight);
+        console.log(`b`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.desiredWidth, this.desiredHeight);
         // if (this.app.screen.width < 1000) {
             let container = this.app.stage;
             // container.width = this.WIDTH;
@@ -830,13 +814,13 @@ class Game {
             // container.scale.x = this.actualWidth() / this.WIDTH;
             // container.scale.y = this.actualHeight() / this.HEIGHT;
             container.scale.set(scale);
-            container.x = (this.app.screen.width / 2 - this.WIDTH/2 * scale);
-            container.y = this.app.screen.height / 2 - this.HEIGHT/2 * scale;
+            container.x = (this.app.screen.width / 2 - this.desiredWidth/2 * scale);
+            container.y = this.app.screen.height / 2 - this.desiredHeight/2 * scale;
             // container.x = this.app.screen.width / 2 * (1-scale);
             // container.y = this.app.screen.height / 2 * (1-scale);
             console.log(`container`, container.x, container.y, container.width, container.height, container.scale.x, container.scale.y);
         // }
-        console.log(`c`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.WIDTH, this.HEIGHT);
+        console.log(`c`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.desiredWidth, this.desiredHeight);
     }
 
     setup_ui() {
@@ -905,39 +889,22 @@ class Game {
         this.progressBar.y = fieldBounds.bottom + 10;
         this.app.stage.addChild(this.progressBar);
 
-        // Mobile scaling and buttons
-        if (this.is_mobile()) {
-            // const scale = Math.min(window.innerWidth / (TILE_SIZE * FIELD_WIDTH + 200), window.innerHeight / (TILE_SIZE * FIELD_HEIGHT + 300));
-            // this.field_container.scale.set(scale);
-            // this.next_container.scale.set(scale);
-            // this.scoreText.scale.set(scale);
-            // this.speedText.scale.set(scale);
-            // this.comboText.scale.set(scale);
-            // this.musicBtn.scale.set(scale);
-            // this.sfxBtn.scale.set(scale);
-            // this.progressBar.scale.set(scale);
-            // progressBg.scale.set(scale);
-
-            // // Reposition containers
-            // this.field_container.x = window.innerWidth / 2;
-            // this.field_container.y = window.innerHeight / 2 - 100;
-            // this.next_container.x = this.field_container.x + (this.field_container.width * scale) / 2 + 25 * scale;
-            // this.next_container.y = this.field_container.y - (this.field_container.height * scale) / 2;
-
+        if (this.is_mobile()||true) {
             // Mobile buttons at bottom
-            const btnY = window.innerHeight - 80;
-            const btnSpacing = 80;
-            let btnX = window.innerWidth / 2 - btnSpacing * 2;
+            const btnY = this.desiredHeight - 50;
+            const btnSpacing = 68;
+            let btnX = 10;
+            // let btnX = this.desiredWidth / 2 - btnSpacing * 2;
 
-            this.leftBtn = this.create_button('←', btnX, btnY, () => this.field.block_move_left());
+            this.rotateLeftBtn = this.create_arial_button('↺', btnX, btnY, () => this.field.block_rotate_left());
             btnX += btnSpacing;
-            this.downBtn = this.create_button('↓', btnX, btnY, () => this.field.block_move_down());
+            this.leftBtn = this.create_arial_button('←', btnX, btnY, () => this.field.block_move_left());
             btnX += btnSpacing;
-            this.rightBtn = this.create_button('→', btnX, btnY, () => this.field.block_move_right());
+            this.downBtn = this.create_arial_button('↓', btnX, btnY, () => this.field.block_move_down());
             btnX += btnSpacing;
-            this.rotateLeftBtn = this.create_button('↺', btnX, btnY, () => this.field.block_rotate_left());
+            this.rightBtn = this.create_arial_button('→', btnX, btnY, () => this.field.block_move_right());
             btnX += btnSpacing;
-            this.rotateRightBtn = this.create_button('↻', btnX, btnY, () => this.field.block_rotate_right());
+            this.rotateRightBtn = this.create_arial_button('↻', btnX, btnY, () => this.field.block_rotate_right());
         }
     }
 
@@ -950,24 +917,27 @@ class Game {
         });
     }
 
-    create_button(text, x, y, callback) {
-        const btn = new PIXI.BitmapText({
-            text: text,
-            style: FONT_STYLE,
-        });
+    create_button_common(text, x, y, callback, btn) {
+        const BUTTON_REPEAT_INITIAL = 200;
+        const BUTTON_REPEAT_HELD = 20;
         btn.x = x;
         btn.y = y;
         btn.interactive = true;
-        btn.isPressed = false;
+        btn.repeat = null;
         btn.on('pointerdown', () => {
-            btn.isPressed = true;
-            if (callback) callback();
+            callback();
+            btn.repeat = setTimeout(() => {
+                callback();
+                btn.repeat = setInterval(() => {
+                    callback();
+                }, BUTTON_REPEAT_HELD);
+            }, BUTTON_REPEAT_INITIAL);
         });
         btn.on('pointerup', () => {
-            btn.isPressed = false;
+            clearTimeout(btn.repeat);
         });
         btn.on('pointerupoutside', () => {
-            btn.isPressed = false;
+            clearTimeout(btn.repeat);
         });
         btn.on('pointerover', () => {
             btn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
@@ -978,6 +948,17 @@ class Game {
         this.app.stage.addChild(btn);
         return btn;
     }
+
+    create_button = (text, x, y, callback) =>
+        this.create_button_common(text, x, y, callback, new PIXI.BitmapText({
+            text: text,
+            style: FONT_STYLE,
+        }));
+    create_arial_button = (text, x, y, callback) =>
+        this.create_button_common(text, x, y, callback, new PIXI.Text({
+            text: text,
+            style: { fontFamily: 'Arial', fontSize: 36 },
+        }));
 
     is_mobile() {
         return window.innerWidth < 1000 || 'ontouchstart' in window;
@@ -1127,25 +1108,6 @@ class Game {
         if (this.key_delay[KEY_ROTATE_LEFT] && !this.key_handled[KEY_ROTATE_LEFT]) {
             this.field.block_rotate_left();
             this.key_handled[KEY_ROTATE_LEFT] = true;
-        }
-
-        // Handle mobile button presses (simulate key presses)
-        if (this.is_mobile()) {
-            if (this.leftBtn && this.leftBtn.isPressed) {
-                this.field.block_move_left();
-            }
-            if (this.rightBtn && this.rightBtn.isPressed) {
-                this.field.block_move_right();
-            }
-            if (this.downBtn && this.downBtn.isPressed) {
-                this.field.block_move_down();
-            }
-            if (this.rotateLeftBtn && this.rotateLeftBtn.isPressed) {
-                this.field.block_rotate_left();
-            }
-            if (this.rotateRightBtn && this.rotateRightBtn.isPressed) {
-                this.field.block_rotate_right();
-            }
         }
 
         this.field.tick(ms);
