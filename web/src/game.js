@@ -725,9 +725,29 @@ class Game {
     }
 
     async init() {
-        await this.init_app();
         await this.load_textures();
         await this.load_sounds();
+        await this.init_app();
+    }
+
+    actualWidth() {
+        const { width, height } = this.app.screen;
+        const isWidthConstrained = width < height * 9 / 16;
+        return isWidthConstrained ? width : height * 9 / 16;
+    }
+
+    actualHeight() {
+        const { width, height } = this.app.screen;
+        const isHeightConstrained = width * 16 / 9 > height;
+        return isHeightConstrained ? height : width * 16 / 9;
+    }
+
+    get WIDTH() {
+        return TILE_SIZE*FIELD_WIDTH + 200;
+    }
+
+    get HEIGHT() {
+        return TILE_SIZE*FIELD_HEIGHT + 100;
     }
 
     async init_app() {
@@ -738,6 +758,10 @@ class Game {
         });
         document.body.appendChild(this.app.canvas);
         this.app.canvas.style.display = 'none';
+
+        const tmp = new PIXI.Graphics().rect(0, 0, this.WIDTH, this.HEIGHT)
+        .fill({color: 0x000011, alpha: 0.3});
+        this.app.stage.addChild(tmp);
 
         {
             this.field_container = new PIXI.Container();
@@ -751,10 +775,11 @@ class Game {
             container.addChild(mask);
 
             // Move the container to the center
-            container.x = this.app.screen.width / 2;
-            container.y = this.app.screen.height / 2;
+            container.x = this.WIDTH / 2;
+            container.y = this.HEIGHT / 2;
 
             // Center the bunny sprites in local container coordinates
+            // container.pivot.x = container.width / 2;
             container.pivot.x = container.width / 2;
             container.pivot.y = container.height / 2;
 
@@ -763,6 +788,7 @@ class Game {
             shadowBounds.pad(3);
             const shadow = new PIXI.Graphics().rect(shadowBounds.left, shadowBounds.top, shadowBounds.width, shadowBounds.height).fill({color: 0x000000, alpha: 0.3});
             this.app.stage.addChild(shadow);
+
             // Add container
             this.app.stage.addChild(container);
         }
@@ -780,6 +806,7 @@ class Game {
             const fieldBounds = this.field_container.getBounds();
             this.next_container.x = fieldBounds.right + 25;
             this.next_container.y = fieldBounds.top;
+            // this.next_container.y = fieldBounds.top * this.app.stage.scale.y;
 
             // Add shadow
             let shadowBounds = this.next_container.getBounds();
@@ -790,48 +817,26 @@ class Game {
             // Add container
             this.app.stage.addChild(this.next_container);
         }
-    }
 
-    setup_start_button() {
-        const startBtn = document.getElementById('start-button');
-        startBtn.addEventListener('click', () => {
-            this.app.canvas.style.display = 'block';
-            document.getElementById('start-screen').style.display = 'none';
-            this.start_game();
-        });
-    }
+        this.setup_ui();
 
-    create_button(text, x, y, callback) {
-        const btn = new PIXI.BitmapText({
-            text: text,
-            style: FONT_STYLE,
-        });
-        btn.x = x;
-        btn.y = y;
-        btn.interactive = true;
-        btn.isPressed = false;
-        btn.on('pointerdown', () => {
-            btn.isPressed = true;
-            if (callback) callback();
-        });
-        btn.on('pointerup', () => {
-            btn.isPressed = false;
-        });
-        btn.on('pointerupoutside', () => {
-            btn.isPressed = false;
-        });
-        btn.on('pointerover', () => {
-            btn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
-        });
-        btn.on('pointerout', () => {
-            btn.style = FONT_STYLE;
-        });
-        this.app.stage.addChild(btn);
-        return btn;
-    }
-
-    is_mobile() {
-        return window.innerWidth < 1000 || 'ontouchstart' in window;
+        const scale = this.app.screen.width < 1000 ? this.actualWidth() / this.WIDTH : 1;
+        console.log(`a`,window.innerWidth, window.innerHeight, this.actualWidth(), this.actualHeight());
+        console.log(`b`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.WIDTH, this.HEIGHT);
+        // if (this.app.screen.width < 1000) {
+            let container = this.app.stage;
+            // container.width = this.WIDTH;
+            // container.height = this.HEIGHT;
+            // container.scale.x = this.actualWidth() / this.WIDTH;
+            // container.scale.y = this.actualHeight() / this.HEIGHT;
+            container.scale.set(scale);
+            container.x = (this.app.screen.width / 2 - this.WIDTH/2 * scale);
+            container.y = this.app.screen.height / 2 - this.HEIGHT/2 * scale;
+            // container.x = this.app.screen.width / 2 * (1-scale);
+            // container.y = this.app.screen.height / 2 * (1-scale);
+            console.log(`container`, container.x, container.y, container.width, container.height, container.scale.x, container.scale.y);
+        // }
+        console.log(`c`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.WIDTH, this.HEIGHT);
     }
 
     setup_ui() {
@@ -902,22 +907,22 @@ class Game {
 
         // Mobile scaling and buttons
         if (this.is_mobile()) {
-            const scale = Math.min(window.innerWidth / (TILE_SIZE * FIELD_WIDTH + 200), window.innerHeight / (TILE_SIZE * FIELD_HEIGHT + 300));
-            this.field_container.scale.set(scale);
-            this.next_container.scale.set(scale);
-            this.scoreText.scale.set(scale);
-            this.speedText.scale.set(scale);
-            this.comboText.scale.set(scale);
-            this.musicBtn.scale.set(scale);
-            this.sfxBtn.scale.set(scale);
-            this.progressBar.scale.set(scale);
-            progressBg.scale.set(scale);
+            // const scale = Math.min(window.innerWidth / (TILE_SIZE * FIELD_WIDTH + 200), window.innerHeight / (TILE_SIZE * FIELD_HEIGHT + 300));
+            // this.field_container.scale.set(scale);
+            // this.next_container.scale.set(scale);
+            // this.scoreText.scale.set(scale);
+            // this.speedText.scale.set(scale);
+            // this.comboText.scale.set(scale);
+            // this.musicBtn.scale.set(scale);
+            // this.sfxBtn.scale.set(scale);
+            // this.progressBar.scale.set(scale);
+            // progressBg.scale.set(scale);
 
-            // Reposition containers
-            this.field_container.x = window.innerWidth / 2;
-            this.field_container.y = window.innerHeight / 2 - 100;
-            this.next_container.x = this.field_container.x + (this.field_container.width * scale) / 2 + 25 * scale;
-            this.next_container.y = this.field_container.y - (this.field_container.height * scale) / 2;
+            // // Reposition containers
+            // this.field_container.x = window.innerWidth / 2;
+            // this.field_container.y = window.innerHeight / 2 - 100;
+            // this.next_container.x = this.field_container.x + (this.field_container.width * scale) / 2 + 25 * scale;
+            // this.next_container.y = this.field_container.y - (this.field_container.height * scale) / 2;
 
             // Mobile buttons at bottom
             const btnY = window.innerHeight - 80;
@@ -936,6 +941,48 @@ class Game {
         }
     }
 
+    setup_start_button() {
+        const startBtn = document.getElementById('start-button');
+        startBtn.addEventListener('click', () => {
+            this.app.canvas.style.display = 'block';
+            document.getElementById('start-screen').style.display = 'none';
+            this.start_game();
+        });
+    }
+
+    create_button(text, x, y, callback) {
+        const btn = new PIXI.BitmapText({
+            text: text,
+            style: FONT_STYLE,
+        });
+        btn.x = x;
+        btn.y = y;
+        btn.interactive = true;
+        btn.isPressed = false;
+        btn.on('pointerdown', () => {
+            btn.isPressed = true;
+            if (callback) callback();
+        });
+        btn.on('pointerup', () => {
+            btn.isPressed = false;
+        });
+        btn.on('pointerupoutside', () => {
+            btn.isPressed = false;
+        });
+        btn.on('pointerover', () => {
+            btn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
+        });
+        btn.on('pointerout', () => {
+            btn.style = FONT_STYLE;
+        });
+        this.app.stage.addChild(btn);
+        return btn;
+    }
+
+    is_mobile() {
+        return window.innerWidth < 1000 || 'ontouchstart' in window;
+    }
+
     start_game() {
         this.started = true;
         this.field = new Field(this);
@@ -944,7 +991,6 @@ class Game {
         this.key_handled = new Array(NUM_KEYS).fill(false);
         this.paused = false;
 
-        this.setup_ui();
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
         this.start_bgm();
