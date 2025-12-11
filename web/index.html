@@ -45,6 +45,10 @@
         #start-button:hover {
             background: #45a049;
         }
+        #difficulty {
+            margin-left: 10px;
+            margin-bottom: 20px;
+        }
         button {
             margin: 5px;
             padding: 5px 10px;
@@ -62,9 +66,17 @@
 <body class="bg">
     <div id="start-screen">
         <h1>BlingBling</h1>
+        <label for="difficulty">Difficulty: <span id="difficulty-value">7</span></label>
+        <input type="range" id="difficulty" min="4" max="7" value="7" step="1">
+        <br>
         <button id="start-button">Play</button>
         <div>(use A/S/D to move, Q/E to rotate)</div>
     </div>
+    <script>
+        document.getElementById('difficulty').addEventListener('input', function() {
+            document.getElementById('difficulty-value').textContent = this.value;
+        });
+    </script>
     <script type="module" src="/src/game.js"></script>
 </body>
 </html>

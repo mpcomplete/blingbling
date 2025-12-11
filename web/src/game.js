@@ -6,7 +6,7 @@ const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
 const TILE_START = 1;
 const TILE_SIZE = 50; // pixels
-const NUM_TYPES = 7; // colors
+const MAX_TYPES = 7; // colors
 const BLOCK_SIZE = 2;
 const FIELD_WIDTH = 6;
 const FIELD_HEIGHT = 12;
@@ -55,14 +55,16 @@ function* sequence(a, b) {
         yield cur;
 }
 
-const IS_COLOR = (type) => TILE_START <= type && type <= NUM_TYPES;
+const IS_COLOR = (type) => TILE_START <= type && type <= MAX_TYPES;
 const ON_FIELD = (row, col, height, width) => row >= 0 && row < height && col >= 0 && col < width;
 
 PIXI.Rectangle.prototype.asArray = function () { return [this.x, this.y, this.width, this.height]; }
 
+let numTileTypes = MAX_TYPES;
+
 // Tile class
 class Tile extends GameObject {
-    static rand() { return randInt(TILE_START, NUM_TYPES+1); }
+    static rand() { return randInt(TILE_START, numTileTypes+1); }
 
     constructor(type = null, container = null) {
         super();
@@ -788,10 +790,9 @@ class Game {
         const nextBounds = this.next_container.getBounds();
 
         let curX = nextBounds.left;
-        let curY = nextBounds.bottom + 100;
+        let curY = nextBounds.bottom + 40;
         const spacing = 60;
 
-        // Score text
         this.scoreText = new PIXI.BitmapText({
             text: 'Score: 0',
             style: FONT_STYLE,
@@ -801,7 +802,6 @@ class Game {
         this.root.addChild(this.scoreText);
         curY += spacing;
 
-        // Speed text
         this.speedText = new PIXI.BitmapText({
             text: 'Speed: 0',
             style: FONT_STYLE,
@@ -811,7 +811,6 @@ class Game {
         this.root.addChild(this.speedText);
         curY += spacing;
 
-        // Combo text
         this.comboText = new PIXI.BitmapText({
             text: 'Best Combo: 0',
             style: FONT_STYLE,
@@ -821,8 +820,16 @@ class Game {
         this.root.addChild(this.comboText);
         curY += spacing;
 
+        this.difficultyText = new PIXI.BitmapText({
+            text: 'Difficulty: 0',
+            style: FONT_STYLE,
+        });
+        this.difficultyText.x = curX;
+        this.difficultyText.y = curY;
+        this.root.addChild(this.difficultyText);
+        curY += spacing;
+
         curY = fieldBounds.bottom - spacing*2;
-        // Music button
         this.musicBtn = this.create_bitmap_button('Music: ON', [curX, curY, 220, 50], () => {
             this.music_on = !this.music_on;
             this.musicBtn.text.text = `Music: ${this.music_on ? 'ON' : 'OFF'}`;
@@ -830,7 +837,6 @@ class Game {
         }, {repeatInitial: 1000, repeatHeld: 1000});
         curY += spacing;
 
-        // SFX button
         this.sfxBtn = this.create_bitmap_button('SFX: ON', [curX, curY, 220, 50], () => {
             this.sfx_on = !this.sfx_on;
             this.sfxBtn.text.text = `SFX: ${this.sfx_on ? 'ON' : 'OFF'}`;
@@ -872,6 +878,7 @@ class Game {
     setup_start_button() {
         const startBtn = document.getElementById('start-button');
         startBtn.addEventListener('click', () => {
+            numTileTypes = parseInt(document.getElementById('difficulty').value);
             this.app.canvas.style.display = 'block';
             document.getElementById('start-screen').style.display = 'none';
             this.start_game();
@@ -1014,7 +1021,7 @@ class Game {
         await PIXI.Assets.load('https://pixijs.com/assets/bitmap-font/desyrel.xml');
 
         // Load normal and connected
-        for (let i = 0; i < NUM_TYPES; i++) {
+        for (let i = 0; i < MAX_TYPES; i++) {
             const name = TILE_NAMES[i];
             this.textures[`${name}`] = await PIXI.Assets.load(`assets/tiles/${name}.png`);
             this.textures[`c${name}`] = await PIXI.Assets.load(`assets/tiles/c${name}.png`);
@@ -1099,6 +1106,7 @@ class Game {
         this.scoreText.text = `Score: ${this.field.get_score()}`;
         this.speedText.text = `Speed: ${this.field.get_speed()}`;
         this.comboText.text = `Best Combo: ${this.field.get_best_combo()}`;
+        this.difficultyText.text = `Difficulty: ${numTileTypes}`;
 
         // Update progress bar
         this.progressBar.clear();
