@@ -739,7 +739,7 @@ class Game {
     }
 
     get desiredHeight() {
-        return TILE_SIZE*FIELD_HEIGHT + 100;
+        return TILE_SIZE*FIELD_HEIGHT + 140;
     }
 
     async init_app() {
@@ -885,10 +885,10 @@ class Game {
 
         if (this.is_mobile()||true) {
             // Mobile buttons at bottom
-            const btnY = this.desiredHeight - 50;
-            const btnSpacing = 120;
+            const btnY = this.desiredHeight - 80;
+            const btnSpacing = 116;
             let btnX = 10;
-            let [w, h] = [50, 50];
+            let [w, h] = [80, 74];
             // let btnX = this.desiredWidth / 2 - btnSpacing * 2;
 
             this.create_arial_button('↺', [btnX, btnY, w, h], () => this.field.block_rotate_left(), BUTTON_OPTS_SLOW);
@@ -973,7 +973,7 @@ class Game {
     create_arial_button(text, dims, callback, opts = BUTTON_OPTS) {
         let btn = this.create_button_common(dims, callback, new PIXI.Text({
             text: text,
-            style: { fontFamily: 'Arial', fontSize: 36 },
+            style: { fontFamily: 'Arial', fontSize: 50 },
         }), opts);
         btn.text.pivot.y += 5;
         return btn;
