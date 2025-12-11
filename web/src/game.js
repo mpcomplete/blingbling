@@ -1,5 +1,6 @@
 // Constants
 import * as PIXI from 'pixi.js';
+import { Animation, GameObject } from './gameObject.js';
 
 const TILE_EMPTY = -1;
 const TILE_CLEARED = 0;
@@ -59,30 +60,6 @@ const ON_FIELD = (row, col, height, width) => row >= 0 && row < height && col >=
 
 PIXI.Rectangle.prototype.asArray = function () { return [this.x, this.y, this.width, this.height]; }
 
-class Animation {
-    constructor(duration, tickFn) {
-        this.age = 0;
-        this.duration = duration;
-        this.tickFn = tickFn;
-    }
-    tick(ms) {
-        this.age += ms;
-        this.tickFn(this.age / this.duration);
-        this.done = this.age >= this.duration;
-        return !this.done;
-    }
-}
-
-class GameObject {
-    constructor() {
-        this.animations = [];
-    }
-
-    tick(ms) {
-        this.animations = this.animations.filter(a => a.tick(ms));
-    }
-}
-
 // Tile class
 class Tile extends GameObject {
     static rand() { return randInt(TILE_START, NUM_TYPES+1); }
@@ -94,9 +71,7 @@ class Tile extends GameObject {
         } else {
             this.type = type;
         }
-        this.age = 0;
         this.frame = 0;
-        this.started = false;
         this.sprite = null;
 
         if (container)
@@ -121,18 +96,13 @@ class Tile extends GameObject {
     update_field_sprite(game, row, col, connected) {
         if (!this.sprite) return;
         if (this.type === TILE_EMPTY) {
-            this.remove_sprite();
-            this.sprite.visible = false;
+            // this.remove_sprite();
+            // this.sprite.visible = false;
             return;
         }
         this.sprite.visible = true;
         let key;
         if (this.type === TILE_CLEARED) {
-            if (this.frame == 6) {
-                this.type = TILE_EMPTY;
-                this.remove_sprite();
-                return;
-            }
             key = `coin${this.frame + 1}`;
         } else if (IS_COLOR(this.type)) {
             key = game.get_texture_key(this.type, connected);
@@ -155,18 +125,15 @@ class Tile extends GameObject {
         }
     }
 
-    tick(ms) {
-        super.tick(ms);
-        if (this.started) {
-            this.age += ms;
-            this.frame = Math.min(6, Math.floor(this.age / 66)); // 6 frames, ~66ms each for 400ms total
-        }
-    }
-
-    start() {
-        this.started = true;
-        this.age = 0;
-        this.frame = 0;
+    animate_clear() {
+        this.animations.push(new Animation(400, t => {
+            this.frame = Math.floor(t * 6);
+            if (this.frame >= 6) {
+                this.type = TILE_EMPTY;
+                this.remove_sprite();
+                return true;
+            }
+        }));
     }
 }
 
@@ -224,27 +191,26 @@ class Block extends GameObject {
     move_left(n = 1.0) { this.x -= n; }
     move_right(n = 1.0) { this.x += n; }
 
-    rotate_anim(from_orient, to_orient) {
+    animate_rotate(from_orient, to_orient) {
         let from_angle = this.get_angle(from_orient);
         let to_angle = this.get_angle(to_orient);
         if (to_angle > from_angle)
             from_angle += 2 * Math.PI;
-        let anim = new Animation(150, t => {
+        this.animations.push(new Animation(150, t => {
             const angle = (1 - t) * from_angle  + t * to_angle;
             this.dy = Math.sin(angle);
             this.dx = Math.cos(angle);
 
             if (t >= 1.0)
                 this.set_offsets();
-        });
-        this.animations.push(anim);
+        }));
     }
 
     rotate_right(anim = false) {
         const old_orient = this.orient;
         this.orient = (this.orient + 1) % 4;
         if (anim) {
-            this.rotate_anim(old_orient, this.orient);
+            this.animate_rotate(old_orient, this.orient);
         } else {
             this.set_offsets();
         }
@@ -254,7 +220,7 @@ class Block extends GameObject {
         const old_orient = this.orient;
         this.orient = (this.orient + 4 - 1) % 4;
         if (anim) {
-            this.rotate_anim(old_orient, this.orient);
+            this.animate_rotate(old_orient, this.orient);
         } else {
             this.set_offsets();
         }
@@ -629,7 +595,7 @@ class Field {
         this.connected[row][col] = false;
         this.data[row][col].remove_sprite();
         this.data[row][col] = new Tile(TILE_CLEARED, this.game.field_container);
-        this.data[row][col].start();
+        this.data[row][col].animate_clear();
         let num = 1;
         num += this.clear_set_from(row - 1, col, type);
         num += this.clear_set_from(row + 1, col, type);
@@ -1232,6 +1198,5 @@ class Game {
     }
 }
 
-// Start game
 const game = new Game();
 game.init();
