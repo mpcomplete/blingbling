@@ -42,6 +42,8 @@ const TILE_NAMES = ['bar', 'bell', 'cherry', 'diamond', 'lemon', 'goldbars', 'se
 
 const FONT_STYLE = { fontFamily: 'Desyrel', fontSize: 36 };
 const FONT_STYLE_LARGE = { fontFamily: 'Desyrel', fontSize: 64 };
+const BUTTON_OPTS = { repeatInitial: 200, repeatHeld: 20 };
+const BUTTON_OPTS_SLOW = { repeatInitial: 200, repeatHeld: 200 };
 
 // Utility
 const randInt = (min, max) => Math.floor(Math.random() * (max - min)) + min;
@@ -762,6 +764,8 @@ class Game {
 
             // Add shadow
             let shadowBounds = this.field_container.getBounds();
+            this.fieldBounds =  this.field_container.getBounds();
+
             shadowBounds.pad(3);
             const shadow = new PIXI.Graphics().rect(shadowBounds.left, shadowBounds.top, shadowBounds.width, shadowBounds.height).fill({color: 0x000000, alpha: 0.3});
             this.app.stage.addChild(shadow);
@@ -805,24 +809,10 @@ class Game {
         const scaleH = this.app.screen.height / this.desiredHeight;
         const scale = Math.min(scaleW, scaleH);
         // const scale = Math.min(1, Math.min(scaleW, scaleH));
-        console.log('scale', scale);
-        // const scale = 1;
-        console.log(`a`,window.innerWidth, window.innerHeight);
-        console.log(`b`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.desiredWidth, this.desiredHeight);
-        // if (this.app.screen.width < 1000) {
-            let container = this.app.stage;
-            // container.width = this.WIDTH;
-            // container.height = this.HEIGHT;
-            // container.scale.x = this.actualWidth() / this.WIDTH;
-            // container.scale.y = this.actualHeight() / this.HEIGHT;
-            container.scale.set(scale);
-            container.x = (this.app.screen.width / 2 - this.desiredWidth/2 * scale);
-            container.y = this.app.screen.height / 2 - this.desiredHeight/2 * scale;
-            // container.x = this.app.screen.width / 2 * (1-scale);
-            // container.y = this.app.screen.height / 2 * (1-scale);
-            console.log(`container`, container.x, container.y, container.width, container.height, container.scale.x, container.scale.y);
-        // }
-        console.log(`c`,this.app.screen.width, this.app.screen.height, this.app.stage.width, this.desiredWidth, this.desiredHeight);
+        let container = this.app.stage;
+        container.scale.set(scale);
+        container.x = (this.app.screen.width / 2 - this.desiredWidth/2 * scale);
+        container.y = this.app.screen.height / 2 - this.desiredHeight/2 * scale;
     }
 
     setup_ui() {
@@ -831,7 +821,7 @@ class Game {
 
         let curX = nextBounds.left;
         let curY = nextBounds.bottom + 100;
-        const spacing = 50;
+        const spacing = 60;
 
         // Score text
         this.scoreText = new PIXI.BitmapText({
@@ -865,18 +855,18 @@ class Game {
 
         curY = fieldBounds.bottom - spacing*2;
         // Music button
-        this.musicBtn = this.create_button('Music: ON', curX, curY, () => {
+        this.musicBtn = this.create_bitmap_button('Music: ON', [curX, curY, 220, 50], () => {
             this.music_on = !this.music_on;
-            this.musicBtn.text = `Music: ${this.music_on ? 'ON' : 'OFF'}`;
+            this.musicBtn.text.text = `Music: ${this.music_on ? 'ON' : 'OFF'}`;
             if (this.sounds.bgm) this.sounds.bgm.volume = this.music_on ? 1 : 0;
-        });
+        }, {repeatInitial: 1000, repeatHeld: 1000});
         curY += spacing;
 
         // SFX button
-        this.sfxBtn = this.create_button('SFX: ON', curX, curY, () => {
+        this.sfxBtn = this.create_bitmap_button('SFX: ON', [curX, curY, 220, 50], () => {
             this.sfx_on = !this.sfx_on;
-            this.sfxBtn.text = `SFX: ${this.sfx_on ? 'ON' : 'OFF'}`;
-        });
+            this.sfxBtn.text.text = `SFX: ${this.sfx_on ? 'ON' : 'OFF'}`;
+        }, {repeatInitial: 1000, repeatHeld: 1000});
         curY += spacing;
 
         // Progress bar background
@@ -896,17 +886,18 @@ class Game {
             const btnY = this.desiredHeight - 50;
             const btnSpacing = 68;
             let btnX = 10;
+            let [w, h] = [50, 50];
             // let btnX = this.desiredWidth / 2 - btnSpacing * 2;
 
-            this.rotateLeftBtn = this.create_arial_button('↺', btnX, btnY, () => this.field.block_rotate_left());
+            this.create_arial_button('↺', [btnX, btnY, w, h], () => this.field.block_rotate_left(), BUTTON_OPTS_SLOW);
             btnX += btnSpacing;
-            this.leftBtn = this.create_arial_button('←', btnX, btnY, () => this.field.block_move_left());
+            this.create_arial_button('←', [btnX, btnY, w, h], () => this.field.block_move_left());
             btnX += btnSpacing;
-            this.downBtn = this.create_arial_button('↓', btnX, btnY, () => this.field.block_move_down());
+            this.create_arial_button('↓', [btnX, btnY, w, h], () => this.field.block_move_down());
             btnX += btnSpacing;
-            this.rightBtn = this.create_arial_button('→', btnX, btnY, () => this.field.block_move_right());
+            this.create_arial_button('→', [btnX, btnY, w, h], () => this.field.block_move_right());
             btnX += btnSpacing;
-            this.rotateRightBtn = this.create_arial_button('↻', btnX, btnY, () => this.field.block_rotate_right());
+            this.create_arial_button('↻', [btnX, btnY, w, h], () => this.field.block_rotate_right(), BUTTON_OPTS_SLOW);
         }
     }
 
@@ -919,22 +910,23 @@ class Game {
         });
     }
 
-    create_button_common(text, x, y, callback, btn) {
-        const BUTTON_REPEAT_INITIAL = 200;
-        const BUTTON_REPEAT_HELD = 20;
+    create_button_common([x, y, w, h], callback, text, opts = BUTTON_OPTS) {
+        let btn = new PIXI.Container();
 
-        // const hackyOffset = 0;
-        const hackyOffset = btn instanceof PIXI.BitmapText ? 4 : 0;
-        console.log(typeof(btn));
-        console.log(typeof(PIXI.BitmapText));
-
-        let bgRect = new PIXI.Rectangle(x-5, y+hackyOffset*3, btn.width+10, btn.height+hackyOffset);
-        const bgIn = new PIXI.Graphics().rect(...bgRect.asArray()).fill(0x80621d);
-        this.app.stage.addChild(bgIn);
+        let bgRect = new PIXI.Rectangle(0, 0, w, h);
+        const bgOut = new PIXI.Graphics().rect(...bgRect.asArray()).fill(0x80621d);
+        btn.addChild(bgOut);
         bgRect.pad(-3);
-        const bgOut = new PIXI.Graphics().rect(...bgRect.asArray()).fill(0xa88532);
-        this.app.stage.addChild(bgOut);
+        const bgIn = new PIXI.Graphics().rect(...bgRect.asArray()).fill(0xa88532);
+        btn.addChild(bgIn);
+        btn.addChild(text);
+        text.x = w / 2;
+        text.y = h / 2;
+        text.pivot.x = text.width / 2;
+        text.pivot.y = text.height / 2;
+        this.app.stage.addChild(btn);
 
+        btn.text = text;
         btn.x = x;
         btn.y = y;
         btn.interactive = true;
@@ -945,8 +937,8 @@ class Game {
                 callback();
                 btn.repeat = setInterval(() => {
                     callback();
-                }, BUTTON_REPEAT_HELD);
-            }, BUTTON_REPEAT_INITIAL);
+                }, opts.repeatHeld);
+            }, opts.repeatInitial);
         });
         btn.on('pointerup', () => {
             clearTimeout(btn.repeat);
@@ -955,26 +947,35 @@ class Game {
             clearTimeout(btn.repeat);
         });
         btn.on('pointerover', () => {
-            btn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
+            bgIn.clear();
+            bgIn.rect(...bgRect.asArray()).fill(0x80621d);
+            // btn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
         });
         btn.on('pointerout', () => {
-            btn.style = FONT_STYLE;
+            bgIn.clear();
+            bgIn.rect(...bgRect.asArray()).fill(0xa88532);
+            // btn.style = FONT_STYLE;
         });
-        this.app.stage.addChild(btn);
 
         return btn;
     }
 
-    create_button = (text, x, y, callback) =>
-        this.create_button_common(text, x, y, callback, new PIXI.BitmapText({
+    create_bitmap_button(text, dims, callback, opts = BUTTON_OPTS) { 
+        let btn = this.create_button_common(dims, callback, new PIXI.BitmapText({
             text: text,
             style: FONT_STYLE,
-        }));
-    create_arial_button = (text, x, y, callback) =>
-        this.create_button_common(text, x, y, callback, new PIXI.Text({
+        }), opts);
+        btn.text.pivot.y += 15; // bitmap text is a bit off vertically
+        return btn;
+    }
+    create_arial_button(text, dims, callback, opts = BUTTON_OPTS) {
+        let btn = this.create_button_common(dims, callback, new PIXI.Text({
             text: text,
             style: { fontFamily: 'Arial', fontSize: 36 },
-        }));
+        }), opts);
+        btn.text.pivot.y += 5;
+        return btn;
+    }
 
     is_mobile() {
         return window.innerWidth < 1000 || 'ontouchstart' in window;
@@ -991,6 +992,7 @@ class Game {
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
         this.start_bgm();
+        this.show_game_over();
     }
 
     async load_sounds() {
@@ -1022,7 +1024,9 @@ class Game {
             style: FONT_STYLE_LARGE,
             anchor: 0.5,
         });
-        const fieldBounds = this.field_container.getBounds();
+        const fieldBounds = this.fieldBounds;
+        const scale = this.app.stage.scale;
+        console.log('float', scale, fieldBounds)
         text.x = fieldBounds.left + col * TILE_SIZE;
         text.y = fieldBounds.bottom - row * TILE_SIZE;
         this.app.stage.addChild(text);
@@ -1152,14 +1156,21 @@ class Game {
     show_game_over() {
         // Create overlay
         this.gameOverOverlay = new PIXI.Container();
-        this.gameOverOverlay.x = this.app.screen.width / 2;
-        this.gameOverOverlay.y = this.app.screen.height / 2;
-        this.gameOverOverlay.pivot.x = this.gameOverOverlay.width / 2;
-        this.gameOverOverlay.pivot.y = this.gameOverOverlay.height / 2;
 
         // Semi-transparent background
-        const bg = new PIXI.Graphics().rect(-this.app.screen.width / 2, -this.app.screen.height / 2, this.app.screen.width, this.app.screen.height).fill({color: 0x000000, alpha: 0.7});
+        // const w = this.desiredWidth;
+        // const h = this.desiredHeight;
+        const w = this.app.screen.width;
+        const h = this.app.screen.height;
+        const bg = new PIXI.Graphics().rect(0, 0, w, h).fill({color: 0x000000, alpha: 0.7});
         this.gameOverOverlay.addChild(bg);
+
+        this.gameOverOverlay.x = this.app.stage.width/2;
+        this.gameOverOverlay.y = this.app.stage.height/2 + 10;
+        this.gameOverOverlay.pivot.x = this.gameOverOverlay.width / 2;
+        this.gameOverOverlay.pivot.y = this.gameOverOverlay.height / 2;
+        console.log('GO overlay', this.gameOverOverlay.width, this.gameOverOverlay.height, w, h);
+        console.log('stags', this.app.stage.width, this.app.stage.height);
 
         // Game Over text
         const gameOverText = new PIXI.BitmapText({
