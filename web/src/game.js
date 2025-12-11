@@ -751,6 +751,9 @@ class Game {
         document.body.appendChild(this.app.canvas);
         this.app.canvas.style.display = 'none';
 
+        this.root = new PIXI.Container();
+        this.app.stage.addChild(this.root);
+
         {
             this.field_container = new PIXI.Container({x: 10, y: 10});
 
@@ -768,10 +771,10 @@ class Game {
 
             shadowBounds.pad(3);
             const shadow = new PIXI.Graphics().rect(shadowBounds.left, shadowBounds.top, shadowBounds.width, shadowBounds.height).fill({color: 0x000000, alpha: 0.3});
-            this.app.stage.addChild(shadow);
+            this.root.addChild(shadow);
 
             // Add container
-            this.app.stage.addChild(container);
+            this.root.addChild(container);
         }
 
         // Next block viewport
@@ -787,32 +790,31 @@ class Game {
             const fieldBounds = this.field_container.getBounds();
             this.next_container.x = fieldBounds.right + 25;
             this.next_container.y = fieldBounds.top;
-            // this.next_container.y = fieldBounds.top * this.app.stage.scale.y;
+            // this.next_container.y = fieldBounds.top * this.root.scale.y;
 
             // Add shadow
             let shadowBounds = this.next_container.getBounds();
             shadowBounds.pad(3);
             const shadow = new PIXI.Graphics().rect(shadowBounds.left, shadowBounds.top, shadowBounds.width, shadowBounds.height).fill({color: 0x000000, alpha: 0.3});
-            this.app.stage.addChild(shadow);
+            this.root.addChild(shadow);
 
             // Add container
-            this.app.stage.addChild(this.next_container);
+            this.root.addChild(this.next_container);
         }
 
         this.setup_ui();
 
-        const tmp = new PIXI.Graphics().rect(0, 0, this.desiredWidth, this.desiredHeight)
-        .fill({color: 0x000011, alpha: 0.3});
-        this.app.stage.addChild(tmp);
+        // const tmp = new PIXI.Graphics().rect(0, 0, this.desiredWidth, this.desiredHeight)
+        // .fill({color: 0x000011, alpha: 0.3});
+        // this.root.addChild(tmp);
 
         const scaleW = this.app.screen.width / this.desiredWidth;
         const scaleH = this.app.screen.height / this.desiredHeight;
         const scale = Math.min(scaleW, scaleH);
         // const scale = Math.min(1, Math.min(scaleW, scaleH));
-        let container = this.app.stage;
-        container.scale.set(scale);
-        container.x = (this.app.screen.width / 2 - this.desiredWidth/2 * scale);
-        container.y = this.app.screen.height / 2 - this.desiredHeight/2 * scale;
+        this.root.scale.set(scale);
+        this.root.x = this.app.screen.width/2 - this.desiredWidth/2 * scale;
+        this.root.y = this.app.screen.height/2 - this.desiredHeight/2 * scale;
     }
 
     setup_ui() {
@@ -830,7 +832,7 @@ class Game {
         });
         this.scoreText.x = curX;
         this.scoreText.y = curY;
-        this.app.stage.addChild(this.scoreText);
+        this.root.addChild(this.scoreText);
         curY += spacing;
 
         // Speed text
@@ -840,7 +842,7 @@ class Game {
         });
         this.speedText.x = curX;
         this.speedText.y = curY;
-        this.app.stage.addChild(this.speedText);
+        this.root.addChild(this.speedText);
         curY += spacing;
 
         // Combo text
@@ -850,7 +852,7 @@ class Game {
         });
         this.comboText.x = curX;
         this.comboText.y = curY;
-        this.app.stage.addChild(this.comboText);
+        this.root.addChild(this.comboText);
         curY += spacing;
 
         curY = fieldBounds.bottom - spacing*2;
@@ -873,13 +875,13 @@ class Game {
         let bounds = new PIXI.Rectangle(fieldBounds.left, fieldBounds.bottom + 10, fieldBounds.width, 24);
         bounds.pad(3);
         const progressBg = new PIXI.Graphics().rect(bounds.x, bounds.y, bounds.width, bounds.height).fill(0x333333);
-        this.app.stage.addChild(progressBg);
+        this.root.addChild(progressBg);
 
         // Progress bar
         this.progressBar = new PIXI.Graphics();
         this.progressBar.x = fieldBounds.left;
         this.progressBar.y = fieldBounds.bottom + 10;
-        this.app.stage.addChild(this.progressBar);
+        this.root.addChild(this.progressBar);
 
         if (this.is_mobile()||true) {
             // Mobile buttons at bottom
@@ -924,7 +926,7 @@ class Game {
         text.y = h / 2;
         text.pivot.x = text.width / 2;
         text.pivot.y = text.height / 2;
-        this.app.stage.addChild(btn);
+        this.root.addChild(btn);
 
         btn.text = text;
         btn.x = x;
@@ -1025,11 +1027,11 @@ class Game {
             anchor: 0.5,
         });
         const fieldBounds = this.fieldBounds;
-        const scale = this.app.stage.scale;
+        const scale = this.root.scale;
         console.log('float', scale, fieldBounds)
         text.x = fieldBounds.left + col * TILE_SIZE;
         text.y = fieldBounds.bottom - row * TILE_SIZE;
-        this.app.stage.addChild(text);
+        this.root.addChild(text);
         this.floating_texts.push({ text, y: text.y, time: 0 });
     }
 
@@ -1040,7 +1042,7 @@ class Game {
             ft.text.y = ft.y - ft.time / 10; // move up
             ft.text.alpha = 1 - ft.time / 1000; // fade out
             if (ft.time > 1000) {
-                this.app.stage.removeChild(ft.text);
+                this.root.removeChild(ft.text);
                 this.floating_texts.splice(i, 1);
             }
         }
@@ -1158,19 +1160,15 @@ class Game {
         this.gameOverOverlay = new PIXI.Container();
 
         // Semi-transparent background
-        // const w = this.desiredWidth;
-        // const h = this.desiredHeight;
-        const w = this.app.screen.width;
-        const h = this.app.screen.height;
+        const w = this.desiredWidth;
+        const h = this.desiredHeight;
         const bg = new PIXI.Graphics().rect(0, 0, w, h).fill({color: 0x000000, alpha: 0.7});
         this.gameOverOverlay.addChild(bg);
 
-        this.gameOverOverlay.x = this.app.stage.width/2;
-        this.gameOverOverlay.y = this.app.stage.height/2 + 10;
-        this.gameOverOverlay.pivot.x = this.gameOverOverlay.width / 2;
-        this.gameOverOverlay.pivot.y = this.gameOverOverlay.height / 2;
-        console.log('GO overlay', this.gameOverOverlay.width, this.gameOverOverlay.height, w, h);
-        console.log('stags', this.app.stage.width, this.app.stage.height);
+        const center = new PIXI.Container();
+        center.x = this.gameOverOverlay.width / 2;
+        center.y = this.gameOverOverlay.height / 2;
+        this.gameOverOverlay.addChild(center);
 
         // Game Over text
         const gameOverText = new PIXI.BitmapText({
@@ -1178,8 +1176,10 @@ class Game {
             style: FONT_STYLE_LARGE,
         });
         gameOverText.anchor.set(0.5);
+        // gameOverText.x = this.gameOverOverlay.width / 2;
+        // gameOverText.y = this.gameOverOverlay.height / 2 - 150;
         gameOverText.y = -150;
-        this.gameOverOverlay.addChild(gameOverText);
+        center.addChild(gameOverText);
 
         // Final Score
         const scoreText = new PIXI.BitmapText({
@@ -1188,7 +1188,7 @@ class Game {
         });
         scoreText.anchor.set(0.5);
         scoreText.y = -50;
-        this.gameOverOverlay.addChild(scoreText);
+        center.addChild(scoreText);
 
         // Best Combo
         const comboText = new PIXI.BitmapText({
@@ -1197,28 +1197,15 @@ class Game {
         });
         comboText.anchor.set(0.5);
         comboText.y = 0;
-        this.gameOverOverlay.addChild(comboText);
+        center.addChild(comboText);
 
         // Restart button
-        const restartBtn = new PIXI.BitmapText({
-            text: 'RESTART',
-            style: FONT_STYLE,
-        });
-        restartBtn.anchor.set(0.5);
-        restartBtn.y = 100;
-        restartBtn.interactive = true;
-        restartBtn.on('pointerdown', () => {
+        const restartBtn = this.create_bitmap_button('RESTART', [-110, 100, 220, 50], () => {
             window.location.reload();
-        });
-        restartBtn.on('pointerover', () => {
-            restartBtn.style = Object.assign({}, FONT_STYLE, { fill: 0x773300 });
-        });
-        restartBtn.on('pointerout', () => {
-            restartBtn.style = FONT_STYLE;
-        });
-        this.gameOverOverlay.addChild(restartBtn);
+        }, {repeatInitial: 1000, repeatHeld: 1000});
+        center.addChild(restartBtn);
 
-        this.app.stage.addChild(this.gameOverOverlay);
+        this.root.addChild(this.gameOverOverlay);
     }
 
     render() {
