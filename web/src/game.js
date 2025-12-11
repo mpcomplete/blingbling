@@ -191,11 +191,9 @@ class Block extends GameObject {
     move_left(n = 1.0) { this.x -= n; }
     move_right(n = 1.0) { this.x += n; }
 
-    animate_rotate(from_orient, to_orient) {
-        let from_angle = this.get_angle(from_orient);
-        let to_angle = this.get_angle(to_orient);
-        if (to_angle > from_angle)
-            from_angle += 2 * Math.PI;
+    animate_rotate(from_orient, {left, right}) {
+        const from_angle = this.get_angle(from_orient);
+        const to_angle = from_angle + (left ? Math.PI/2 : -Math.PI/2);
         this.animations.push(new Animation(150, t => {
             const angle = (1 - t) * from_angle  + t * to_angle;
             this.dy = Math.sin(angle);
@@ -210,7 +208,7 @@ class Block extends GameObject {
         const old_orient = this.orient;
         this.orient = (this.orient + 1) % 4;
         if (anim) {
-            this.animate_rotate(old_orient, this.orient);
+            this.animate_rotate(old_orient, {right: true});
         } else {
             this.set_offsets();
         }
@@ -220,7 +218,7 @@ class Block extends GameObject {
         const old_orient = this.orient;
         this.orient = (this.orient + 4 - 1) % 4;
         if (anim) {
-            this.animate_rotate(old_orient, this.orient);
+            this.animate_rotate(old_orient, {left: true});
         } else {
             this.set_offsets();
         }
@@ -851,8 +849,8 @@ class Game {
         this.progressBar.y = fieldBounds.bottom + 10;
         this.root.addChild(this.progressBar);
 
-        if (this.is_mobile()||true) {
-            // Mobile buttons at bottom
+        // Movement controls
+        {
             const btnY = this.desiredHeight - 80;
             const btnSpacing = 116;
             let btnX = 10;
@@ -930,7 +928,7 @@ class Game {
         return btn;
     }
 
-    create_bitmap_button(text, dims, callback, opts = BUTTON_OPTS) { 
+    create_bitmap_button(text, dims, callback, opts = BUTTON_OPTS) {
         let btn = this.create_button_common(dims, callback, new PIXI.BitmapText({
             text: text,
             style: FONT_STYLE,
@@ -945,10 +943,6 @@ class Game {
         }), opts);
         btn.text.pivot.y += 5;
         return btn;
-    }
-
-    is_mobile() {
-        return window.innerWidth < 1000 || 'ontouchstart' in window;
     }
 
     start_game() {
