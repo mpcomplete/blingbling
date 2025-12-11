@@ -886,7 +886,7 @@ class Game {
         if (this.is_mobile()||true) {
             // Mobile buttons at bottom
             const btnY = this.desiredHeight - 50;
-            const btnSpacing = 68;
+            const btnSpacing = 120;
             let btnX = 10;
             let [w, h] = [50, 50];
             // let btnX = this.desiredWidth / 2 - btnSpacing * 2;
@@ -994,7 +994,6 @@ class Game {
         this.setup_input();
         this.app.ticker.add(this.update.bind(this));
         this.start_bgm();
-        this.show_game_over();
     }
 
     async load_sounds() {
