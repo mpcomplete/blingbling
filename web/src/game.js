@@ -59,11 +59,36 @@ const ON_FIELD = (row, col, height, width) => row >= 0 && row < height && col >=
 
 PIXI.Rectangle.prototype.asArray = function () { return [this.x, this.y, this.width, this.height]; }
 
+class Animation {
+    constructor(duration, tickFn) {
+        this.age = 0;
+        this.duration = duration;
+        this.tickFn = tickFn;
+    }
+    tick(ms) {
+        this.age += ms;
+        this.tickFn(this.age / this.duration);
+        this.done = this.age >= this.duration;
+        return !this.done;
+    }
+}
+
+class GameObject {
+    constructor() {
+        this.animations = [];
+    }
+
+    tick(ms) {
+        this.animations = this.animations.filter(a => a.tick(ms));
+    }
+}
+
 // Tile class
-class Tile {
+class Tile extends GameObject {
     static rand() { return randInt(TILE_START, NUM_TYPES+1); }
 
     constructor(type = null, container = null) {
+        super();
         if (type === null) {
             this.type = TILE_EMPTY;
         } else {
@@ -131,6 +156,7 @@ class Tile {
     }
 
     tick(ms) {
+        super.tick(ms);
         if (this.started) {
             this.age += ms;
             this.frame = Math.min(6, Math.floor(this.age / 66)); // 6 frames, ~66ms each for 400ms total
@@ -145,8 +171,9 @@ class Tile {
 }
 
 // Block class
-class Block {
+class Block extends GameObject {
     constructor(game, y = null, x = null, container = null) {
+        super();
         this.orient = NORTH;
         this.tiles = [];
         for (let i = 0; i < BLOCK_SIZE; i++) {
@@ -156,10 +183,6 @@ class Block {
         this.x = x !== null ? x : 0;
         this.dy = 1.0;
         this.dx = 0.0;
-        this.timer = 0;
-        this.start_angle = 0;
-        this.stop_angle = 0;
-        this.running = false;
     }
 
     mimic(b) {
@@ -201,34 +224,27 @@ class Block {
     move_left(n = 1.0) { this.x -= n; }
     move_right(n = 1.0) { this.x += n; }
 
-    tick(ms) {
-        if (!this.running) return;
+    rotate_anim(from_orient, to_orient) {
+        let from_angle = this.get_angle(from_orient);
+        let to_angle = this.get_angle(to_orient);
+        if (to_angle > from_angle)
+            from_angle += 2 * Math.PI;
+        let anim = new Animation(150, t => {
+            const angle = (1 - t) * from_angle  + t * to_angle;
+            this.dy = Math.sin(angle);
+            this.dx = Math.cos(angle);
 
-        this.timer += ms;
-
-        if (this.timer >= 150) { // ROTATION_DURATION
-            this.stop();
-            this.set_offsets();
-            return;
-        }
-
-        const t = this.timer / 150.0;
-        const angle = (1 - t) * this.start_angle + t * this.stop_angle;
-        this.dy = Math.sin(angle);
-        this.dx = Math.cos(angle);
+            if (t >= 1.0)
+                this.set_offsets();
+        });
+        this.animations.push(anim);
     }
 
     rotate_right(anim = false) {
         const old_orient = this.orient;
         this.orient = (this.orient + 1) % 4;
         if (anim) {
-            this.timer = 0;
-            this.start_angle = this.get_angle(old_orient);
-            this.stop_angle = this.get_angle(this.orient);
-            if (this.stop_angle > this.start_angle) {
-                this.start_angle += 2 * Math.PI;
-            }
-            this.start();
+            this.rotate_anim(old_orient, this.orient);
         } else {
             this.set_offsets();
         }
@@ -238,13 +254,7 @@ class Block {
         const old_orient = this.orient;
         this.orient = (this.orient + 4 - 1) % 4;
         if (anim) {
-            this.timer = 0;
-            this.start_angle = this.get_angle(old_orient);
-            this.stop_angle = this.get_angle(this.orient);
-            if (this.stop_angle < this.start_angle) {
-                this.stop_angle += 2 * Math.PI;
-            }
-            this.start();
+            this.rotate_anim(old_orient, this.orient);
         } else {
             this.set_offsets();
         }
@@ -279,14 +289,6 @@ class Block {
                 this.dy = 0.0;
                 break;
         }
-    }
-
-    start() {
-        this.running = true;
-    }
-
-    stop() {
-        this.running = false;
     }
 
     get_tile(i) {
